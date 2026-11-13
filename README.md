@@ -6,7 +6,10 @@
 yt-dlp 取最高品質音軌 給 ffmpeg 轉成 Opus 再給 Discord；另附 trello 風格的網頁看板，看板同頻道的朋友也可以用哦(需要用到 VPS )
 
 ![中控台 / Dashboard](docs/images/dashboard.png)
-<sub>中控台畫面（用測試用的假資料截圖）/ the dashboard (screenshot with demo data)</sub>
+<sub>中控台實際使用的畫面（個人資訊已模糊處理）/ the dashboard in real use (personal info blurred)</sub>
+
+![中控台 demo / Dashboard demo](docs/images/dashboard-demo.png)
+<sub>用測試用的假資料截圖，可以自己跑 `tests/harness_hub.py` 重現 / screenshot with demo data, reproducible with `tests/harness_hub.py`</sub>
 
 ## English summary
 
