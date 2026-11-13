@@ -3,6 +3,14 @@
 格式參考 [Keep a Changelog](https://keepachangelog.com/)，版本號遵循 [SemVer](https://semver.org/lang/zh-TW/)
 Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [SemVer](https://semver.org/)
 
+## [1.0.1] - 2026-11-14
+
+### 修正 / Fixes
+- Discord 閘道斷線後，bot 要睡很久才重連（最長約 17 分鐘），現在上限 16 秒 / after a Discord gateway outage bots slept up to ~17 min before reconnecting, now capped at 16 s
+- 斷線時語音被踢掉（4014），播到一半的歌會丟掉，也不會回頻道，現在連線恢復後自己回去、從原本的秒數接著播 / a voice kick (4014) during an outage dropped the song and left the bot out of the channel, now it rejoins and resumes from the same second
+- 人手動踢掉 bot 不會觸發自動回去 / a manual kick by a person does not trigger the auto-rejoin
+- 新增 `tests/recover_unit.py` / added `tests/recover_unit.py`
+
 ## [1.0.0] - 2026-11-14
 
 第一個公開版本 / first public release

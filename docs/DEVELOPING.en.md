@@ -4,7 +4,7 @@ A free Discord music bot that runs on your own PC, Bilibili first, best audio qu
 This page is for people who want to change it: new language, new colors, better audio, or reuse the UI somewhere else
 (中文版在 [DEVELOPING.zh-TW.md](DEVELOPING.zh-TW.md))
 
-Version: **1.0.0** · License: [Unlicense](../LICENSE) (public domain, do whatever you want) · Third-party list: [THIRD_PARTY.md](../THIRD_PARTY.md)
+Version: **1.0.1** · License: [Unlicense](../LICENSE) (public domain, do whatever you want) · Third-party list: [THIRD_PARTY.md](../THIRD_PARTY.md)
 
 ## 1. Map of the project
 
@@ -80,7 +80,7 @@ Everything visual is in `web/style.css`, the colors are tokens at the very top
 
 ## 5. Add a language
 
-Honest status for 1.0.0: **there is no i18n layer yet**, all texts are written directly in the code (Traditional Chinese)
+Honest status for 1.0.1: **there is no i18n layer yet**, all texts are written directly in the code (Traditional Chinese)
 So today a new language means editing strings, and an i18n layer is the best first contribution
 
 Where the texts live (rough count of lines with visible text):

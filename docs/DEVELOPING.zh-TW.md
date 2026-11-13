@@ -4,7 +4,7 @@
 這份給想改它的人：新增語言、改配色、優化音源到 Discord 的路徑、把看板 UI 用在別的地方
 (English version: [DEVELOPING.en.md](DEVELOPING.en.md))
 
-版本：**1.0.0** · 授權：[Unlicense](../LICENSE)（公有領域，想怎麼改都可以）· 第三方清單：[THIRD_PARTY.md](../THIRD_PARTY.md)
+版本：**1.0.1** · 授權：[Unlicense](../LICENSE)（公有領域，想怎麼改都可以）· 第三方清單：[THIRD_PARTY.md](../THIRD_PARTY.md)
 
 ## 1. 專案地圖
 
@@ -80,7 +80,7 @@ copy .env.example .env                                           # 再把 DISCOR
 
 ## 5. 新增語言
 
-先講實話：1.0.0 **還沒有 i18n 機制**，文字都直接寫在程式裡（繁體中文）
+先講實話：1.0.1 **還沒有 i18n 機制**，文字都直接寫在程式裡（繁體中文）
 所以現在要加語言就是改字串，而做出 i18n 機制會是最有價值的第一個貢獻
 
 文字在哪裡（大概的行數）：

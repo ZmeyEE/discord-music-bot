@@ -30,7 +30,7 @@ SUITES = [
     ("avatar_test.py", "verify", {}),
 ]
 # 自己就能跑的（不需要 harness）/ Self-contained (no harness needed)
-STANDALONE = ["health_unit.py", "harden_test.py"]
+STANDALONE = ["health_unit.py", "harden_test.py", "recover_unit.py"]
 
 
 def stop(p):

@@ -48,6 +48,11 @@ LOOP_LABEL = {"off": "關閉", "single": "單曲循環", "queue": "列表循環"
 EMPTY_LEAVE_SECONDS = config.env_int("EMPTY_LEAVE_SECONDS", 120)   # 頻道內只剩機器人 / only bots left in the channel
 IDLE_LEAVE_SECONDS = config.env_int("IDLE_LEAVE_SECONDS", 300)     # 沒有在播也沒有待播 / nothing playing and nothing queued
 
+# Discord 閘道斷線後，語音被踢掉（4014）的歌，這段秒數內會自動回頻道接著播，超過就當作是人踢的
+# If Discord's gateway dropped and then kicked us from voice (4014) within this many seconds, rejoin and resume; otherwise a human kicked us.
+RECOVER_WINDOW = 900.0
+RECOVER_SECONDS = 600.0   # 回頻道最多試多久（頻道沒人就等人回來）/ how long to keep trying to rejoin (waits for people if the channel is empty)
+
 _ffmpeg_err = None   # ffmpeg 錯誤輸出的檔案 handle（共用一個）/ the shared file handle for ffmpeg's stderr
 
 
@@ -97,6 +102,9 @@ class GuildState:
     reserved_until: float = 0.0
     probe: StreamProbe | None = None    # 這首歌的送包時間紀錄（播放健康偵測用，見 health.py）/ packet-timing record of this song (for health.py)
     joined_at: float = 0.0              # 這個機器人進入目前語音頻道的時間（monotonic）；卡頓時依此找出"最後加入的"/ when this bot entered its current voice channel (monotonic); used to find "the newest" on stutter
+    start_offset: float = 0.0           # 斷線救回的那首要從第幾秒接著播 / where the rescued track resumes after a drop
+    start_offset_id: str = ""           # 上面那個秒數屬於哪一首（id 對不上就不套用）/ which track that offset belongs to (ignored when the id differs)
+    recovering: bool = False            # 正在回語音頻道 / rejoining voice right now
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)   # 防止同時啟動兩次播放 / prevents starting playback twice concurrently
 
     @property
@@ -142,6 +150,8 @@ class PlayerBot(discord.Client):
         self.ffmpeg = find_ffmpeg()
         self._enrich_sem: asyncio.Semaphore | None = None
         self._watch_task: asyncio.Task | None = None
+        self._gateway_drop = float("-inf")   # 最近一次閘道斷線的時間（monotonic）/ when the gateway last dropped (monotonic)
+        self._recover_tasks: dict[int, asyncio.Task] = {}
 
     # ------------------------------------------------------------
     # 基礎 / Basics
@@ -193,6 +203,11 @@ class PlayerBot(discord.Client):
         if self._watch_task is None:
             self._watch_task = asyncio.create_task(self._watch_idle())
         await self.hub.on_worker_ready(self)
+
+    async def on_disconnect(self) -> None:
+        """閘道斷線：記下時間，之後語音被踢掉時才分得出是 Discord 斷線還是人踢的
+        Gateway dropped: remember when, so a later voice kick can be told apart (Discord outage vs a human)."""
+        self._gateway_drop = time.monotonic()
 
     async def on_voice_state_update(self, member, before, after) -> None:
         """有人進出語音頻道 / Someone joined or left a voice channel."""
@@ -281,7 +296,9 @@ class PlayerBot(discord.Client):
                 track.title = track.title or stream.title
                 track.thumbnail = track.thumbnail or stream.thumbnail
                 track.duration = track.duration or (int(stream.duration) if stream.duration else None)
-                bitrate = self._play_stream(guild, vc, track, stream)
+                offset = st.start_offset if st.start_offset_id == track.id else 0.0
+                st.start_offset, st.start_offset_id = 0.0, ""
+                bitrate = self._play_stream(guild, vc, track, stream, offset)
                 self.notify(guild.id)
                 if st.last_announced != track.id:
                     st.last_announced = track.id
@@ -395,6 +412,17 @@ class PlayerBot(discord.Client):
                     log.warning("跳轉失敗：%s", exc)
 
         track = st.current
+        if track and guild.voice_client is None and time.monotonic() - self._gateway_drop < RECOVER_WINDOW:
+            # 閘道斷線期間語音被 Discord 踢掉：歌放回待播最前面並記住進度，等連線恢復再回頻道接著播
+            # Voice was kicked while the gateway was down: put the song back at the front with its position, rejoin once we are back.
+            st.start_offset, st.start_offset_id = st.position(), track.id
+            st.queue.appendleft(track)
+            st.current, st.stream, st.started_at, st.paused_at, st.probe = None, None, 0.0, None, None
+            st.skip_flag = st.drop_flag = False
+            log.warning("[%s] 語音被 Discord 踢掉（%s），%s 會在連線恢復後接著播", self.label, guild.name, track.title)
+            self._start_recover(guild.id)
+            self.notify(guild.id)
+            return
         played = (time.monotonic() - st.started_at - st.paused_accum) if st.started_at else 0.0
         skipped, st.skip_flag = st.skip_flag, False
         dropped, st.drop_flag = st.drop_flag, False
@@ -407,6 +435,53 @@ class PlayerBot(discord.Client):
                 st.queue.appendleft(track)
         await self.ensure_playing(guild)
         self.notify(guild.id)
+
+    def _start_recover(self, guild_id: int) -> None:
+        """開一個背景工作回語音頻道，同一個伺服器只會有一個
+        Start the background job that rejoins voice; only one per server."""
+        st = self.state(guild_id)
+        if st.recovering:
+            return
+        st.recovering = True
+        self._recover_tasks[guild_id] = asyncio.create_task(self._recover_voice(guild_id))
+
+    async def _recover_voice(self, guild_id: int) -> None:
+        """連線恢復後回到原本的語音頻道，接著播剛剛被中斷的那首
+        等待時間 3 秒起每次加倍，最多 30 秒；頻道沒有真人就繼續等，使用者 /stop 或超過 RECOVER_SECONDS 就放棄
+
+        Rejoin the old voice channel once we are connected again and carry on with the interrupted song.
+        Waits 3 s, doubling up to 30 s; with nobody in the channel it keeps waiting. Gives up on /stop or after RECOVER_SECONDS.
+        """
+        st = self.state(guild_id)
+        deadline, delay = time.monotonic() + RECOVER_SECONDS, 3.0
+        try:
+            while time.monotonic() < deadline and st.recovering:
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, 30.0)
+                guild = self.get_guild(guild_id)
+                if guild is None or self.is_closed():
+                    return
+                if not self.is_ready() or not st.queue:
+                    continue
+                channel = guild.get_channel(st.last_voice_id) if st.last_voice_id else None
+                if channel is None:
+                    return
+                if guild.voice_client is None and not [m for m in channel.members if not m.bot]:
+                    continue
+                try:
+                    await self.ensure_voice(guild)
+                    await self.ensure_playing(guild)
+                except Exception as exc:  # noqa: BLE001 - 還沒連好就下一輪再試 / not connected yet: try again next round
+                    log.warning("[%s] 回語音頻道失敗，稍後再試：%s", self.label, str(exc)[:120])
+                    continue
+                if guild.voice_client is not None:
+                    log.info("[%s] 已回到語音頻道並接著播（%s）", self.label, guild.name)
+                    await self._say(st, "剛剛連線中斷，我回來了，接著播剛才那首")
+                    return
+        finally:
+            st.recovering = False
+            self._recover_tasks.pop(guild_id, None)
+            self.notify(guild_id)
 
     async def enrich_many(self, guild_id: int, tracks: list[Track]) -> None:
         """在背景補齊多首曲目的縮圖等資訊（同時最多 3 個，免得被站方限流）
@@ -592,6 +667,8 @@ class PlayerBot(discord.Client):
         st.current, st.stream, st.started_at, st.paused_at, st.probe = None, None, 0.0, None, None
         st.empty_since = st.idle_since = 0.0
         st.joined_at = 0.0
+        st.recovering = False            # 使用者主動停止：不要再自動回頻道 / the user stopped it: no more auto-rejoin
+        st.start_offset, st.start_offset_id = 0.0, ""
         vc = guild.voice_client
         if vc:
             vc.stop()

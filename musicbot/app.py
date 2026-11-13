@@ -53,6 +53,25 @@ def check_davey_compat() -> None:
         )
 
 
+def cap_reconnect_delay(max_exp: int = 4) -> None:
+    """把 discord.py 斷線重連的等待上限從約 17 分鐘縮到 16 秒
+
+    discord.py waits uniform(0, 2^n) seconds between reconnects, n up to 10, and only resets after ~34 minutes
+    of calm. After two outages in one night a bot could sleep 2-3 minutes (up to 17) after Discord was already
+    back. Cap n at ``max_exp`` (2^4 = 16 s) for both the gateway and the voice reconnect loops.
+    """
+    from discord import client, voice_state
+    from discord.backoff import ExponentialBackoff
+
+    class _CappedBackoff(ExponentialBackoff):
+        def __init__(self, *args, **kwargs) -> None:
+            super().__init__(*args, **kwargs)
+            self._max = max_exp
+
+    client.ExponentialBackoff = _CappedBackoff
+    voice_state.ExponentialBackoff = _CappedBackoff
+
+
 # ============================================================
 # 紀錄 / Logging
 # ============================================================
@@ -210,6 +229,7 @@ def main() -> None:
     config.load_settings()
     setup_logging()
     check_davey_compat()
+    cap_reconnect_delay()
     tokens = config.discord_tokens()
     if not tokens:
         raise SystemExit("尚未設定 DISCORD_TOKEN：請複製 .env.example 為 .env 並填入 Token")
