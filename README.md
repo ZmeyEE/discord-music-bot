@@ -1,7 +1,7 @@
 # 本地 Discord MP3 bot（Bilibili 優先）＋ 網頁看板
 
 ## 首先感謝 claude code sonnet 5.5 協作
-##沒 ai agents 一個晚上我真的做不出來 哈哈
+## 沒 ai agents 一個晚上我真的做不出來 哈哈
 
 本地執行，完全 free 高音質 Discord MP3 bot
 yt-dlp 取最高品質音軌 給 ffmpeg 轉成 Opus 再給 Discord；另附 trello 風格的網頁看板，看板同頻道的朋友也可以用哦(需要用到 VPS )
