@@ -5,6 +5,9 @@
 本地執行，完全 free 高音質 Discord MP3 bot<br>
 yt-dlp 取最高品質音軌 給 ffmpeg 轉成 Opus 再給 Discord；另附 trello 風格的網頁看板，看板同頻道的朋友也可以用哦(需要用到 VPS )
 
+![中控台 / Dashboard](docs/images/dashboard.png)
+<sub>中控台畫面（用測試用的假資料截圖）/ the dashboard (screenshot with demo data)</sub>
+
 ## English summary
 
 A free Discord music bot that runs on your own PC. It resolves the best audio track with **yt-dlp**, re-encodes
