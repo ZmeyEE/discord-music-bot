@@ -1,0 +1,5 @@
+# 批次檔一定要 CRLF，shell 腳本一定要 LF，不然在 Windows／Linux 上會壞掉
+# Batch files must be CRLF and shell scripts must be LF, otherwise they break on Windows / Linux
+*.bat text eol=crlf
+*.sh text eol=lf
+*.service text eol=lf

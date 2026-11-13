@@ -1,0 +1,502 @@
+/* ==========================================================================
+   音樂看板 — 樣式 / Music dashboard — styles
+   配色取自"黃昏雲海"：奶油 / 玫瑰粉 / 薰衣草灰藍 / 鋼藍
+   Palette inspired by a "dusk sea of clouds": cream / rose / lavender-grey / steel blue.
+
+   檔案地圖 / File map:
+     變數 Variables -> 頂部 Top bar -> 看板 Board -> 卡片 Cards -> 加歌輸入框 Add box -> 正在播放 Now playing
+     -> 刪除區 Trash -> 其他 Misc -> 多播放器分頁 Player tabs -> 唯讀提示 Read-only banner
+     -> Bilibili 帳號 Bilibili account -> 驗證畫面 Verify gate -> 響應式 Responsive
+
+   效能原則 / Performance notes: no backdrop-filter on large or repeated elements; cards use CSS containment;
+   drag-related transitions are disabled while dragging (see the body.dragging rules).
+   ========================================================================== */
+
+:root {
+  /* 調色盤 / Palette */
+  --cream: #F7E0D3;
+  --rose: #E3C2C6;
+  --lavender: #AFAFC8;
+  --steel: #5F7EAE;
+
+  /* 衍生色 / Derived colours */
+  --ink: #33405E;          /* 主要文字（鋼藍加深，對比度 > 7:1）/ main text (darkened steel, contrast > 7:1) */
+  --ink-2: #5D6A8C;        /* 次要文字 / secondary text */
+  --ink-3: #8791AE;        /* 輔助文字 / tertiary text */
+  --accent: #54739F;       /* 主要按鈕（白字對比度 > 4.5:1）/ primary buttons (white text contrast > 4.5:1) */
+  --accent-light: #6C8AB8;
+  --rose-deep: #C98C99;
+  --rose-ink: #9C5B6B;
+
+  --glass: rgba(255, 255, 255, .46);
+  --glass-line: rgba(255, 255, 255, .72);
+  --card: #FFF9F4;
+  --line: rgba(175, 175, 200, .4);
+  --shadow: 0 12px 32px rgba(84, 115, 159, .16);
+
+  --radius: 18px;
+  --font: "Huninn", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei UI", system-ui, sans-serif;
+  --font-num: "Nunito", "Huninn", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+
+body {
+  font-family: var(--font);
+  font-synthesis: none;            /* 粉圓只有一種字重，不要瀏覽器假粗體 / Huninn has one weight; don't let the browser fake bold */
+  color: var(--ink);
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #C9B3CE;   /* 底色（背景漸層載入前的保底）/ base colour (fallback before the gradient paints) */
+}
+
+/* 天空背景放在獨立的固定圖層：只畫一次，之後捲動／拖曳都不用重畫
+   （原本用 background-attachment: fixed，每次捲動或拖曳都會讓整個背景重繪）
+   The sky background lives on its own fixed layer: painted once, never repainted on scroll/drag
+   (the old background-attachment: fixed repainted the whole background on every scroll or drag). */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(900px 520px at 88% 108%, rgba(255, 255, 255, .78), transparent 62%),
+    radial-gradient(720px 440px at 8% 104%, rgba(255, 255, 255, .55), transparent 62%),
+    linear-gradient(165deg, #AFA3CB 0%, #C9B3CE 32%, #E6C8BF 66%, #F7E0D3 100%);
+}
+
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+h1, h2, p { margin: 0; font-weight: 400; }
+[hidden] { display: none !important; }
+
+:focus-visible { outline: 2px solid var(--steel); outline-offset: 2px; }
+
+/* 統一的線條圖示 / unified line icons */
+.i {
+  width: 1.25em; height: 1.25em; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* ---------------------------------------------------------------- 頂部 / Top bar */
+.topbar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px;
+  padding: 14px 28px 4px;
+}
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.logo { width: 38px; height: 38px; flex: none; filter: drop-shadow(0 3px 6px rgba(84, 115, 159, .3)); }
+.brand h1 { font-size: 1.15rem; letter-spacing: .02em; }
+.status { font-size: .82rem; color: var(--ink-2); display: flex; align-items: center; gap: 7px; }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); flex: none; }
+.status.ok::before { background: #6BB59A; box-shadow: 0 0 0 3px rgba(107, 181, 154, .25); }
+.status.bad::before { background: var(--rose-deep); box-shadow: 0 0 0 3px rgba(201, 140, 153, .25); }
+
+.controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px 14px; }
+
+/* 音質：分段控制（數字用 Nunito，等寬對齊）/ quality: segmented control (digits use Nunito for even alignment) */
+.seg-label { align-self: center; padding: 0 8px 0 14px; font-size: .82rem; color: var(--ink-2); }
+.seg-quality button { padding: 8px 13px; font-family: var(--font-num); font-weight: 800; font-size: .84rem; }
+
+/* 循環模式：分段控制 / loop mode: segmented control */
+.seg {
+  display: inline-flex; padding: 4px; gap: 2px; border-radius: 999px;
+  background: rgba(255, 255, 255, .5); border: 1px solid var(--glass-line); box-shadow: 0 4px 14px rgba(84, 115, 159, .12);
+}
+.seg button {
+  display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--ink-2); font-size: .9rem; transition: background .18s, color .18s, box-shadow .18s;
+}
+.seg button:hover { background: rgba(255, 255, 255, .7); color: var(--ink); }
+.seg button[aria-checked="true"] {
+  background: linear-gradient(180deg, var(--accent-light), var(--accent)); color: #fff;
+  box-shadow: 0 4px 10px rgba(84, 115, 159, .35);
+}
+
+/* ---------------------------------------------------------------- 看板 / Board */
+.board {
+  flex: 1; min-height: 0; display: grid; gap: 18px;
+  grid-template-columns: minmax(400px, 460px) minmax(0, 1fr) 190px;   /* 正在播放區加寬，方便拖進度條 / the now-playing column is wide so the seek bar is easy to drag */
+  padding: 14px 28px 26px;
+}
+
+.panel {
+  min-height: 0; display: flex; flex-direction: column; padding: 18px;
+  border-radius: var(--radius); border: 1px solid var(--glass-line);
+  /* 刻意不用 backdrop-filter（毛玻璃）：它每一幀都要即時模糊背後內容，三個大面板同時存在時是主要的卡頓來源
+     改用半透明漸層疊出相近的"霧面"質感，成本只有一次繪製
+     Deliberately no backdrop-filter (frosted glass): it blurs what is behind it on every frame and is a main cause
+     of jank with three big panels. A translucent gradient gives a similar frosted look at the cost of one paint. */
+  background: linear-gradient(180deg, rgba(255, 255, 255, .66), rgba(255, 255, 255, .5));
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, .6);
+  contain: layout style;   /* 面板內部的變動不會牽動其他面板的版面計算 / changes inside a panel don't trigger layout in other panels */
+}
+.panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.panel-title { font-size: 1rem; color: var(--ink); display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.panel-head .panel-title { margin-bottom: 0; }
+.count {
+  font-family: var(--font-num); font-weight: 800; font-size: .78rem; color: var(--accent);
+  background: rgba(84, 115, 159, .12); border-radius: 999px; padding: 1px 9px;
+}
+
+.tools { display: flex; gap: 4px; }
+.tool-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 34px; min-width: 34px; padding: 0 8px;
+  justify-content: center; border: 0; border-radius: 999px; background: transparent; color: var(--ink-2);
+  transition: background .15s, color .15s;
+}
+.tool-btn:hover { background: rgba(255, 255, 255, .75); color: var(--ink); }
+.tool-btn .armed-text { display: none; font-size: .82rem; }
+.tool-btn.armed { background: var(--rose); color: var(--rose-ink); padding: 0 12px; }
+.tool-btn.armed .armed-text { display: inline; }
+
+/* ---------------------------------------------------------------- 卡片 / Cards */
+.cards {
+  flex: 1; min-height: 60px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;   /* 一列一首，順序一目了然 / one song per row; the order is obvious at a glance */
+  padding: 4px 6px 12px 2px; margin-right: -6px;
+}
+.cards::-webkit-scrollbar { width: 8px; }
+.cards::-webkit-scrollbar-thumb { background: rgba(95, 126, 174, .28); border-radius: 4px; }
+
+.card {
+  position: relative; display: flex; gap: 14px; padding: 9px; border-radius: 14px;
+  background: var(--card); border: 1px solid var(--line); box-shadow: 0 2px 6px rgba(84, 115, 159, .1);
+  cursor: grab; user-select: none; -webkit-user-select: none;
+  /* 注意：不能對 transform 做 transition，否則拖曳時跟著滑鼠的浮動複本會慢半拍
+     Note: never transition `transform`, or the floating drag copy would lag behind the mouse */
+  transition: box-shadow .16s, border-color .16s;
+  /* 卡片自成一個獨立的版面／繪製範圍：拖曳時旁邊的卡片位移，不會牽動其他卡片重算
+     Each card is its own layout/paint scope: neighbours shifting during a drag don't force other cards to recompute */
+  contain: layout style paint;
+}
+.card:hover { box-shadow: 0 8px 18px rgba(84, 115, 159, .18); border-color: rgba(95, 126, 174, .4); }
+/* 拖曳中：滑鼠掃過的卡片不再播陰影過渡（大範圍陰影的重繪很貴），也不顯示懸停的按鈕
+   While dragging: cards under the mouse skip the shadow transition (large shadows are expensive to repaint) and hide hover buttons */
+body.dragging .card { transition: none; }
+body.dragging .card:hover { box-shadow: 0 2px 6px rgba(84, 115, 159, .1); border-color: var(--line); }
+body.dragging .card:hover .actions { opacity: 0; }
+
+.thumb {
+  position: relative; flex: none; width: 128px; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden;
+  display: grid; place-items: center; color: rgba(255, 255, 255, .85);
+  background: linear-gradient(135deg, var(--lavender), var(--rose));
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.thumb .i { width: 30px; height: 30px; }
+.idx {   /* 播放順序序號 / play-order number */
+  position: absolute; left: 6px; top: 6px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px;
+  display: grid; place-items: center; background: rgba(51, 64, 94, .72); color: #fff;
+  font-family: var(--font-num); font-weight: 800; font-size: .72rem;
+  /* 不用 backdrop-filter：每張卡片一個即時模糊，清單一長、拖曳時每一幀都要重算，是拖曳卡頓的主因之一
+     No backdrop-filter: one live blur per card is recomputed every frame during a drag on a long list, a main cause of drag jank */
+}
+
+.card .info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 1px 0; }
+.card .title {
+  font-size: .95rem; line-height: 1.4; color: var(--ink); word-break: break-all;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.meta { display: flex; align-items: center; gap: 8px; font-size: .78rem; color: var(--ink-2); min-width: 0; }
+.meta .who { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.meta .req { display: inline-flex; align-items: center; gap: 5px; min-width: 0; flex: 0 1 auto; white-space: nowrap; }
+.req-label { color: var(--ink-3); font-size: .72rem; flex: none; }
+.req-av { width: 18px; height: 18px; border-radius: 50%; flex: none; object-fit: cover; background: rgba(175, 175, 200, .4); box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .85); }
+.req-initial { display: inline-grid; place-items: center; font-size: .66rem; font-weight: 800; color: #fff; background: var(--accent); }
+.req-name { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.pill {
+  flex: none; font-family: var(--font-num); font-weight: 800; font-size: .72rem; line-height: 1;
+  padding: 4px 8px; border-radius: 999px; background: rgba(175, 175, 200, .3); color: var(--ink-2);
+}
+.pill.src-bili { background: rgba(227, 194, 198, .65); color: var(--rose-ink); }
+.pill.src-yt { background: rgba(95, 126, 174, .16); color: var(--accent); }
+
+.card .actions { position: absolute; top: 7px; right: 7px; display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
+.card:hover .actions, .card:focus-within .actions { opacity: 1; }
+.card .actions button {
+  width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 50%;
+  background: rgba(255, 255, 255, .92); color: var(--ink-2); box-shadow: 0 2px 6px rgba(84, 115, 159, .25);
+  transition: background .15s, color .15s;
+}
+.card .actions button .i { width: 15px; height: 15px; }
+.card .actions button:hover { background: var(--accent); color: #fff; }
+.card .actions .x:hover { background: var(--rose-deep); }
+
+/* SortableJS 拖曳狀態 / SortableJS drag states */
+.ghost { opacity: .4; background: rgba(175, 175, 200, .35); border: 2px dashed var(--lavender); box-shadow: none; }
+.ghost > * { visibility: hidden; }
+/* 跟著滑鼠走的浮動複本：必須即時跟手，所以關掉所有過渡，並交給 GPU 合成
+   The floating copy that follows the mouse: it must track instantly, so all transitions are off and it is composited by the GPU */
+.sortable-fallback {
+  opacity: .97 !important; cursor: grabbing !important; z-index: 1000;
+  transition: none !important; will-change: transform; backdrop-filter: none;
+  box-shadow: 0 18px 38px rgba(51, 64, 94, .32) !important; border-color: var(--steel) !important;
+}
+/* 只對"本來就有指標樣式"的元素覆蓋；原本用 body.dragging * 會讓整棵 DOM 在開始拖曳的瞬間全部重算樣式（一開始拖就頓一下）
+   Override the cursor only on elements that already have one; the old `body.dragging *` recomputed styles for the whole DOM the moment a drag began (a hitch at drag start) */
+body.dragging, body.dragging :is(.card, .now-card, .seek, .col-trash, .trash, button, input, .menu-item) { cursor: grabbing !important; }
+
+/* 空清單 / empty list */
+.empty { flex: 1; display: grid; justify-items: center; align-content: center; gap: 4px; padding: 26px 8px; color: var(--ink-2); text-align: center; }
+.empty-art { width: 76px; height: 76px; stroke: var(--lavender); margin-bottom: 6px; }
+.empty .sub { font-size: .82rem; color: var(--ink-3); }
+.col-queue:not(.is-empty) .empty, .col-queue.is-empty .cards { display: none; }
+
+/* ---------------------------------------------------------- 加歌輸入框 / Add-song box */
+.adder {
+  display: flex; gap: 10px; align-items: center; margin-top: 8px; padding: 8px 8px 8px 16px; border-radius: 999px;
+  background: rgba(255, 255, 255, .82); border: 1px solid var(--line); box-shadow: 0 4px 14px rgba(84, 115, 159, .12);
+  transition: border-color .15s, box-shadow .15s;
+}
+.adder:focus-within { border-color: var(--steel); box-shadow: 0 0 0 4px rgba(95, 126, 174, .18); }
+.adder-field { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; color: var(--ink-3); }
+.adder-field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: .95rem; padding: 8px 0; }
+.adder-field input::placeholder { color: var(--ink-3); }
+.btn-primary {
+  flex: none; padding: 9px 24px; border: 0; border-radius: 999px; color: #fff; font-size: .95rem; letter-spacing: .08em;
+  background: linear-gradient(180deg, var(--accent-light), var(--accent)); box-shadow: 0 4px 10px rgba(84, 115, 159, .35);
+  transition: transform .12s, filter .15s;
+}
+.btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { filter: grayscale(.4) opacity(.7); cursor: progress; }
+
+.detect { min-height: 1.4em; margin: 8px 0 0 16px; font-size: .8rem; color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
+.detect:empty { display: none; }
+.detect .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lavender); }
+.detect.bili .dot { background: var(--rose-deep); }
+.detect.yt .dot { background: var(--steel); }
+
+/* ---------------------------------------------------------- 正在播放 / Now playing */
+.now-drop { min-height: 140px; }
+.now-card {
+  padding: 12px; border-radius: 16px; background: var(--card); border: 1px solid var(--line);
+  box-shadow: 0 6px 18px rgba(84, 115, 159, .16); cursor: grab; user-select: none; -webkit-user-select: none;
+}
+.now-card .art {
+  width: 100%; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; display: grid; place-items: center;
+  color: rgba(255, 255, 255, .85); background: linear-gradient(135deg, var(--lavender), var(--rose));
+}
+.now-card .art img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.now-card .art .i { width: 52px; height: 52px; }
+.now-card .title { margin: 12px 2px 4px; font-size: 1.05rem; line-height: 1.45; word-break: break-all; }
+.now-card .meta { margin: 0 2px; }
+.chip { display: inline-block; margin: 10px 2px 0; padding: 4px 11px; border-radius: 999px; font-size: .76rem; background: rgba(175, 175, 200, .32); color: var(--ink-2); font-family: var(--font-num); font-weight: 600; }
+.chip.loading { background: rgba(227, 194, 198, .6); color: var(--rose-ink); }
+
+/* 進度條：點一下跳到該處、按住拖曳可調整；高度只有 6px 但可點擊範圍有 26px
+   Seek bar: click to jump, press and drag to adjust; only 6 px tall but a 26 px click target */
+.seek { position: relative; height: 26px; margin: 10px 2px 0; cursor: pointer; touch-action: none; outline-offset: 0; }
+.seek-track { position: absolute; left: 0; right: 0; top: 50%; height: 6px; transform: translateY(-50%); border-radius: 999px; background: rgba(175, 175, 200, .4); overflow: hidden; transition: height .15s; }
+.seek:hover .seek-track, .seek.active .seek-track { height: 8px; }
+/* 進度用 CSS 變數 --p（0~1）驅動：填色用 transform，只在合成階段處理，不會觸發版面計算
+   Progress is driven by the CSS variable --p (0..1): the fill uses transform, so it is handled on the compositor and triggers no layout */
+.seek { --p: 0; }
+.seek-fill {
+  height: 100%; width: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--steel), var(--rose-deep));
+  transform: scaleX(var(--p)); transform-origin: 0 50%; transition: transform .5s linear; will-change: transform;
+}
+.seek.active .seek-fill { transition: none; }
+.seek-knob {
+  position: absolute; top: 50%; left: calc(var(--p) * 100%); width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  border: 3px solid var(--steel); box-shadow: 0 2px 8px rgba(84, 115, 159, .45); transform: translate(-50%, -50%) scale(.6);
+  opacity: 0; transition: opacity .15s, transform .15s; pointer-events: none;
+}
+.seek:hover .seek-knob, .seek.active .seek-knob, .seek:focus-visible .seek-knob { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.seek-tip {
+  position: absolute; bottom: 100%; left: 0; transform: translate(-50%, 2px); padding: 3px 9px; border-radius: 999px;
+  background: rgba(51, 64, 94, .94); color: var(--cream); font-family: var(--font-num); font-weight: 600; font-size: .74rem;
+  white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .12s;
+}
+.seek:hover .seek-tip, .seek.active .seek-tip { opacity: 1; }
+.seek-tip:empty { display: none; }
+.seek.disabled { cursor: default; opacity: .55; pointer-events: none; }
+.times { display: flex; justify-content: space-between; margin: 0 2px; font-family: var(--font-num); font-weight: 600; font-size: .78rem; color: var(--ink-2); }
+
+.ctrl { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 12px; }
+.ctrl button {
+  display: grid; place-items: center; width: 42px; height: 42px; border: 0; border-radius: 50%;
+  background: rgba(175, 175, 200, .28); color: var(--ink); transition: background .15s, transform .12s, color .15s;
+}
+.ctrl button:hover { background: rgba(175, 175, 200, .5); transform: scale(1.06); }
+.ctrl button.main { width: 54px; height: 54px; color: #fff; background: linear-gradient(180deg, var(--accent-light), var(--accent)); box-shadow: 0 6px 14px rgba(84, 115, 159, .4); }
+.ctrl button.main .i { width: 26px; height: 26px; }
+.ctrl button.danger:hover { background: var(--rose); color: var(--rose-ink); }
+.idle { display: grid; place-items: center; gap: 8px; padding: 34px 8px; text-align: center; color: var(--ink-3); font-size: .9rem; }
+.idle .i { width: 44px; height: 44px; stroke: var(--lavender); }
+.hint { margin-top: 12px; text-align: center; font-size: .8rem; color: var(--ink-3); }
+
+/* ------------------------------------------------------------ 刪除區 / Trash zone */
+.col-trash {
+  position: relative; border: 2px dashed rgba(201, 140, 153, .7); background: rgba(227, 194, 198, .34);
+  transition: background .2s, border-color .2s, transform .2s;
+}
+.col-trash .panel-title { color: var(--rose-ink); position: relative; z-index: 2; pointer-events: none; }
+.trash { position: absolute; inset: 0; z-index: 1; border-radius: inherit; }   /* 整個欄位都能放開 / the whole column accepts drops */
+.trash-center {
+  position: absolute; inset: 0; z-index: 0; display: grid; place-content: center; justify-items: center; gap: 12px;
+  color: var(--rose-ink); text-align: center; font-size: .9rem; line-height: 1.6; pointer-events: none; opacity: .85;
+}
+.trash-icon { width: 46px; height: 46px; stroke-width: 1.6; transition: transform .25s; }
+body.dragging .col-trash { background: rgba(227, 194, 198, .72); border-color: var(--rose-deep); }
+body.dragging .trash-icon { animation: wiggle .7s ease-in-out infinite; }
+.col-trash.over { background: rgba(227, 194, 198, .95); transform: scale(1.015); }
+.col-trash.over .trash-icon { animation: none; transform: scale(1.25) rotate(-8deg); }
+@keyframes wiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-9deg); } 75% { transform: rotate(9deg); } }
+
+/* 撕裂消失特效：卡片被撕成兩半，各自飄開並淡出 / tear-away effect: the card rips in two, each half drifts away and fades */
+.tear-piece { position: fixed; z-index: 2000; pointer-events: none; will-change: transform, opacity; filter: drop-shadow(0 6px 10px rgba(84, 115, 159, .28)); }
+.tear-piece > * { margin: 0 !important; transform: none !important; width: 100%; height: 100%; }
+
+/* ------------------------------------------------------------- 其他 / Misc */
+.toast {
+  position: fixed; left: 50%; bottom: 28px; z-index: 3000; max-width: min(84vw, 560px);
+  padding: 11px 22px; border-radius: 999px; font-size: .9rem; color: var(--cream);
+  background: rgba(51, 64, 94, .94); box-shadow: 0 12px 30px rgba(51, 64, 94, .35);
+  transform: translateX(-50%); animation: toast-in .25s ease-out;
+}
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 12px); } }
+
+.picker { margin: 64px auto; max-width: 520px; padding: 24px; }
+.picker a {
+  display: block; margin: 10px 0; padding: 16px 20px; border-radius: 14px; text-decoration: none; color: var(--ink);
+  background: var(--card); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(84, 115, 159, .12); transition: transform .15s, box-shadow .15s;
+}
+.picker a:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(84, 115, 159, .2); }
+
+/* ------------------------------------------------ 多播放器（分身）分頁 / Multi-player (clone) tabs */
+.players { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 28px 0; }
+.player-chip {
+  display: inline-flex; align-items: center; gap: 8px; max-width: 260px; padding: 7px 14px 7px 12px; border-radius: 999px;
+  border: 1px solid var(--glass-line); background: rgba(255, 255, 255, .55); color: var(--ink-2); font-size: .86rem;
+  transition: background .15s, color .15s, box-shadow .15s;
+}
+.player-chip:hover { background: rgba(255, 255, 255, .85); color: var(--ink); }
+.player-chip[aria-selected="true"] { background: linear-gradient(180deg, var(--accent-light), var(--accent)); color: #fff; border-color: transparent; box-shadow: 0 4px 10px rgba(84, 115, 159, .35); }
+.player-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lavender); flex: none; }
+.player-chip.playing .dot { background: #6BB59A; box-shadow: 0 0 0 3px rgba(107, 181, 154, .28); }
+.player-chip.paused .dot { background: #E0B56B; }
+.player-chip .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player-chip small { font-family: var(--font-num); font-weight: 600; opacity: .7; font-size: .72rem; white-space: nowrap; }
+.players .clones { margin-left: auto; font-size: .8rem; color: var(--ink-2); }
+
+/* "＋ 加到頻道"與它的選單 / the "+ add to channel" button and its menu */
+.chan-wrap, .tab-wrap { position: relative; }
+/* 還沒開始播放的頻道分頁：虛線框，選取時變實心；右邊有一顆小 × 可以關掉
+   Tabs of channels that haven't started playing: dashed outline, solid when selected; a small x on the right closes them */
+.tab-wrap { display: inline-flex; align-items: center; }
+.player-chip.fresh { border-style: dashed; border-color: rgba(84, 115, 159, .5); padding-right: 30px; }
+.player-chip.fresh[aria-selected="true"] { border-style: solid; }
+.tab-close {
+  position: absolute; right: 7px; top: 50%; width: 18px; height: 18px; margin-top: -9px; padding: 0; display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: transparent; color: inherit; opacity: .6;
+}
+.tab-close:hover { opacity: 1; background: rgba(51, 64, 94, .14); }
+.tab-close .i { width: 12px; height: 12px; }
+.player-chip.fresh[aria-selected="true"] ~ .tab-close { color: #fff; }
+/* 空分頁：其他頻道的控制項不能用（避免誤操作到別的頻道），只能加歌
+   Empty tab: other channels' controls are disabled (no accidental actions on another channel); only adding songs is possible */
+body.empty-tab .ctrl, body.empty-tab .tools, body.empty-tab #loopBtns { opacity: .45; pointer-events: none; }
+.player-chip.add { border-style: dashed; border-color: rgba(84, 115, 159, .5); background: rgba(255, 255, 255, .35); color: var(--accent); }
+.player-chip.add[aria-selected="true"] { border-style: solid; }
+.menu {
+  position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; min-width: 220px; max-height: 280px; overflow-y: auto; padding: 6px;
+  border-radius: 14px; background: var(--card); border: 1px solid var(--line); box-shadow: 0 14px 34px rgba(51, 64, 94, .28);
+}
+.menu-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; padding: 9px 12px; border: 0;
+  border-radius: 10px; background: transparent; color: var(--ink); text-align: left; font-size: .9rem;
+}
+.menu-item:hover, .menu-item:focus-visible { background: rgba(84, 115, 159, .12); }
+.menu-item small { font-family: var(--font-num); font-weight: 600; color: var(--ink-3); font-size: .74rem; }
+
+/* 唯讀提示 / read-only banner */
+.perm {
+  margin: 8px 28px 0; padding: 8px 16px; border-radius: 999px; font-size: .86rem; text-align: center;
+  background: rgba(227, 194, 198, .75); color: var(--rose-ink); border: 1px solid rgba(201, 140, 153, .45);
+}
+.perm.limit { border-radius: 16px; line-height: 1.6; text-align: left; background: rgba(240, 222, 186, .8); color: #7a5b1f; border-color: rgba(201, 164, 98, .5); }
+body.readonly .adder, body.readonly .ctrl, body.readonly .tools, body.readonly .seek, body.readonly .seg-quality, body.readonly #loopBtns { opacity: .55; }
+body.readonly .card, body.readonly .now-card { cursor: not-allowed; }
+/* 播放端（家裡的機器人）離線：畫面變淡、不能操作，回來後自動恢復 / worker (the bot at home) offline: the UI fades and is inert, recovering automatically when it returns */
+body.offline .board, body.offline .topbar .controls { opacity: .4; pointer-events: none; }
+
+/* 次要按鈕（加歌框裡的"下一首"）/ secondary button ("next" in the add box) */
+.btn-ghost {
+  flex: none; padding: 9px 16px; border-radius: 999px; font-size: .9rem; color: var(--accent);
+  border: 1px solid rgba(84, 115, 159, .4); background: transparent; transition: background .15s, color .15s;
+}
+.btn-ghost:hover { background: rgba(84, 115, 159, .12); }
+.btn-ghost.danger { color: var(--rose-ink); border-color: rgba(201, 140, 153, .6); }
+.btn-ghost.danger:hover { background: rgba(227, 194, 198, .5); }
+.detect.tip { color: var(--ink-3); }
+
+/* ------------------------------------------------ Bilibili 帳號 / Bilibili account */
+.bili-btn {
+  margin-top: auto; display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 14px 8px 10px; border-radius: 999px;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, .7); color: var(--ink); text-align: left;
+  transition: background .15s, box-shadow .15s;
+}
+.bili-btn:hover { background: rgba(255, 255, 255, .95); box-shadow: 0 4px 12px rgba(84, 115, 159, .15); }
+.bili-btn .bili-text { flex: 1; min-width: 0; display: grid; line-height: 1.25; font-size: .88rem; }
+.bili-btn small { color: var(--ink-3); font-size: .74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bili-btn .i { color: var(--ink-3); }
+.bili-avatar {
+  flex: none; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--lavender), var(--rose)); color: #fff;
+}
+.bili-avatar.big { width: 58px; height: 58px; }
+.bili-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bili-avatar .i { width: 18px; height: 18px; }
+
+.dlg { border: 0; padding: 0; background: transparent; color: var(--ink); max-width: 100vw; }
+.dlg::backdrop { background: rgba(51, 64, 94, .45); }
+.dlg-box {
+  width: min(92vw, 430px); padding: 20px 22px; border-radius: 20px; background: var(--card);
+  box-shadow: 0 24px 60px rgba(51, 64, 94, .35); display: grid; gap: 14px;
+}
+.dlg-head { display: flex; align-items: center; justify-content: space-between; }
+.dlg-head h2 { font-size: 1.05rem; }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.bili-account { display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 14px; background: rgba(175, 175, 200, .22); }
+.bili-name { font-size: 1.05rem; margin-bottom: 4px; }
+.qr-box { display: grid; justify-items: center; gap: 10px; }
+.qr { padding: 10px; border-radius: 14px; background: #fff; box-shadow: 0 4px 14px rgba(84, 115, 159, .18); }
+.qr.dim { opacity: .25; }
+.qr-status { font-size: .92rem; color: var(--ink-2); text-align: center; }
+.qr-status.ok { color: #3c8f73; }
+.qr-status.bad { color: var(--rose-ink); }
+.bili-note { font-size: .8rem; line-height: 1.6; color: var(--ink-2); }
+.bili-note b { font-weight: 400; color: var(--ink); }
+
+/* 驗證畫面 / verify gate */
+.gate.verify { max-width: 520px; }
+.vsteps { text-align: left; display: grid; gap: 10px; margin: 6px 0 2px; padding: 16px 22px 16px 44px; border-radius: 16px; background: rgba(255, 255, 255, .7); color: var(--ink); line-height: 1.6; }
+.vsteps b { font-weight: 800; color: var(--accent); }
+.vsub { font-size: .85rem; color: var(--ink-2); line-height: 1.7; }
+
+/* 連結無效 / invalid link */
+.gate { margin: 12vh auto; max-width: 460px; padding: 28px; text-align: center; display: grid; justify-items: center; gap: 10px; }
+.gate-icon { width: 54px; height: 54px; stroke: var(--rose-deep); }
+.gate code { background: rgba(255, 255, 255, .7); padding: 2px 8px; border-radius: 8px; font-family: var(--font-num); }
+
+/* ---------------------------------------------------------- 響應式 / Responsive */
+@media (max-width: 1080px) {
+  .board { grid-template-columns: 340px minmax(0, 1fr) 150px; padding-inline: 16px; }
+  .topbar { padding-inline: 16px; }
+}
+@media (max-width: 860px) {
+  body { overflow: auto; }
+  .board { grid-template-columns: 1fr; }
+  .col-trash { min-height: 160px; }
+  .cards { overflow: visible; margin-right: 0; }
+  .seg button span { display: none; }
+}
+
+/* 系統設為"減少動態效果"時：只關掉會一直循環／位移的裝飾動畫
+   一次性的回饋（卡片撕裂、拖曳排序、按鈕反應）仍保留，但幅度較小，見 app.js 的 tearAway
+   With the system set to "reduce motion": only endlessly looping / moving decorative animations are turned off.
+   One-off feedback (tearing a card, drag sorting, button reactions) stays but is smaller; see tearAway in app.js. */
+@media (prefers-reduced-motion: reduce) {
+  body.dragging .trash-icon { animation: none; }
+  .toast { animation: none; }
+  .btn-primary:hover, .ctrl button:hover, .picker a:hover { transform: none; }
+}

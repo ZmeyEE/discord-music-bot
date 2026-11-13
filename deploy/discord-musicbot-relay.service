@@ -1,0 +1,61 @@
+# systemd 服務範本：把"中繼站"當成背景服務跑在 VPS／樹莓派（Linux）上，開機自動啟動、掛掉自動重開
+# systemd unit template: runs the relay as a background service on a VPS (Linux) with a public IP;
+# starts at boot and restarts itself if it crashes.
+#
+# 使用前請建立專用帳號並依實際情況調整 User 與路徑，然後 / Before use, create a dedicated account and adjust User and the paths, then:
+#   sudo cp deploy/discord-musicbot-relay.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now discord-musicbot-relay
+# 看日誌 / view the log:   journalctl -u discord-musicbot-relay -f
+# 檢查沙盒強度 / check the sandbox score:   systemd-analyze security discord-musicbot-relay
+[Unit]
+Description=Discord Music Bot - Relay (dashboard node)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=musicbot
+WorkingDirectory=/opt/discord-musicbot
+# RELAY_KEY 等設定放在 WorkingDirectory 底下的 .env（chmod 600，只有 musicbot 能讀）
+# RELAY_KEY is read from the .env under WorkingDirectory (chmod 600, readable by the musicbot user only).
+ExecStart=/opt/discord-musicbot/.venv/bin/python -X utf8 -m musicbot.relay
+Restart=always
+RestartSec=5
+
+# ---- 資源上限：中繼站只轉送訊息，吃得很少；萬一被灌也不會拖垮整台機器 ----
+# ---- Resource limits: the relay only forwards messages; even under attack it can't drag down the whole host ----
+MemoryMax=200M
+TasksMax=64
+LimitNOFILE=4096
+Nice=5
+
+# ---- 沙盒：這個程式只需要"收發網路"與"寫自己的資料夾"，其餘全部拿掉 ----
+# ---- Sandbox: the program only needs network access and write access to its own folder; everything else is taken away ----
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/discord-musicbot
+ProtectProc=invisible
+ProcSubset=pid
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+
+[Install]
+WantedBy=multi-user.target

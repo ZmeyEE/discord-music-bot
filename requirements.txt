@@ -1,0 +1,13 @@
+﻿discord.py[voice]>=2.4   # Discord API + voice support / Discord 介面與語音
+yt-dlp                   # resolves Bilibili / YouTube links to audio streams / 解析影音網址
+segno                    # Bilibili QR-code login (pure Python, no dependencies) / Bilibili 登入 QR 碼（純 Python、無相依套件）
+
+# 重要：davey 0.2.x 與 discord.py 2.7.x 不相容
+# 0.2.0 改了端對端加密（DAVE）的介面，要求呼叫 prepare_transition，但 discord.py 2.7.1 還沒有；
+# 結果是機器人能進語音頻道、頭像有綠框，但 log 裡 dave_ready 永遠是 False、頻道內完全沒聲音
+# discord.py 自己只寫 davey>=0.1.0，所以必須在這裡把上限鎖定
+# IMPORTANT: davey 0.2.x is not compatible with discord.py 2.7.x.
+# 0.2.0 changed the end-to-end-encryption (DAVE) interface and requires prepare_transition, which discord.py 2.7.1
+# does not call yet. Result: the bot joins voice and shows the green ring, but dave_ready stays False in the log
+# and the channel hears nothing. discord.py itself only asks for davey>=0.1.0, so the upper bound is pinned here.
+davey>=0.1.0,<0.2

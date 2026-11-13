@@ -1,0 +1,5 @@
+﻿# 中繼站（控制台節點）只需要這一個套件
+# 不需要 discord.py、yt-dlp、ffmpeg，所以最便宜的 VPS 或樹莓派都能跑
+# The relay (dashboard node) needs only this one package.
+# No discord.py, yt-dlp or ffmpeg required, so even the cheapest VPS or a Raspberry Pi can run it.
+aiohttp

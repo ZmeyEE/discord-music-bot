@@ -1,0 +1,34 @@
+﻿# 機密：絕對不要上傳 / SECRETS: never upload these
+.env
+cookies.txt
+settings.json
+members.json
+# 伺服器密碼、SSH 金鑰、憑證（寧可多擋）
+# Server passwords, SSH keys, certificates (better to over-block)
+*password*
+*passwd*
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+*_ed25519*
+
+# 本機環境與產物 / local environment and build output
+.venv/
+__pycache__/
+*.pyc
+logs/
+build/
+dist/
+*.spec
+
+# 測試產生的暫存檔 / files made by the tests
+tests/*.log
+tests/settings_test.json
+tests/members_test.json
+
+# 編輯器／系統 / editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
