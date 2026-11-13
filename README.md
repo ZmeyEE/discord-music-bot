@@ -342,6 +342,7 @@ Want to add a language, change the colors, tune the audio path or reuse the dash
 
 - [docs/DEVELOPING.zh-TW.md](docs/DEVELOPING.zh-TW.md)（繁體中文）/ [docs/DEVELOPING.en.md](docs/DEVELOPING.en.md)（English）
 - 跑測試 / run the tests：`.venv\Scripts\python.exe tests\run_all.py`（說明見 [tests/README.md](tests/README.md)）
+- 卡片式 UI 庫 / the card UI as a standalone library：[dusk-cards](https://github.com/ZmeyEE/dusk-cards)
 - 更新紀錄 / changelog：[CHANGELOG.md](CHANGELOG.md) · 資安 / security：[SECURITY.md](SECURITY.md) · 第三方元件 / third party：[THIRD_PARTY.md](THIRD_PARTY.md)
 
 ## 第三方元件

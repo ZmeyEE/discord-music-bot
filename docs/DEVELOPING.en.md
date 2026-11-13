@@ -145,7 +145,7 @@ Ideas:
 - **Other music source / other chat platform**: keep `web/` as is, write a backend that serves `web/` plus `/ws/<id>` and builds the same `state` object
 - **Only the card look**: copy `.card` and its children from `web/style.css`, `makeCard()` in `web/app.js` and the palette tokens, they have no dependency on the music code
 - **Drag to reorder / drag to the trash**: see the Sortable setup in `app.js` and `.trash` in the CSS
-- A standalone "card UI" library made from these parts is a planned follow-up, not part of 1.0.0
+- The card UI is also available as a standalone library: [dusk-cards](https://github.com/ZmeyEE/dusk-cards) (vanilla JS + CSS, public domain)
 
 ## 8. Security rules for contributors
 

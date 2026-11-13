@@ -145,7 +145,7 @@ copy .env.example .env                                           # 再把 DISCOR
 - **換音樂來源／換聊天平台**：`web/` 原封不動，寫一個後端提供 `web/` 和 `/ws/<id>`，組出同樣的 `state` 物件
 - **只要卡片的外觀**：複製 `web/style.css` 的 `.card` 與子元素、`web/app.js` 的 `makeCard()` 和調色盤變數，它們不依賴音樂程式
 - **拖曳排序／拖到垃圾桶**：看 `app.js` 的 Sortable 設定和 CSS 的 `.trash`
-- 把這些獨立成"卡片式 UI 庫"是之後的計畫，不在 1.0.0
+- 卡片式 UI 也獨立成一個庫了：[dusk-cards](https://github.com/ZmeyEE/dusk-cards)（原生 JS + CSS，公有領域）
 
 ## 8. 給貢獻者的資安規則
 
