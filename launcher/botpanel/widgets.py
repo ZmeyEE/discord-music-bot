@@ -66,8 +66,11 @@ class Pill:
         """放到 (x, y)，大小 w × h，base 是它後面的底色 / Put it at (x, y), size w x h; ``base`` is the colour behind it."""
         self.box, self.base = (x, y, x + w, y + h), base
         self.draw()
-        for ev, fn in (("<Enter>", self._enter), ("<Leave>", self._leave), ("<ButtonPress-1>", self._press), ("<ButtonRelease-1>", self._release)):
-            self.cv.tag_bind(self.tag, ev, fn)
+
+    def contains(self, x: float, y: float) -> bool:
+        """座標是否落在按鈕範圍內 / Whether the point is inside the button."""
+        x0, y0, x1, y1 = self.box
+        return x0 <= x <= x1 and y0 <= y <= y1
 
     def set_enabled(self, on: bool) -> None:
         """啟用或停用（停用時變淡、點了沒反應）/ Enable or disable (dimmed and inert when disabled)."""
@@ -115,29 +118,74 @@ class Pill:
             self.cv.create_polygon(_round_points(x0, y0, x1, y1, (y1 - y0) / 2), smooth=True, fill="", outline=line, tags=self.tag)
         self.cv.create_text((x0 + x1) / 2, (y0 + y1) / 2, text=self.text, fill=text, font=self.font, tags=self.tag)
 
-    # --- 互動 / interaction ---
-    def _enter(self, _e=None) -> None:
-        if self.enabled:
-            self._hover = True
-            self.cv.configure(cursor="hand2")
+    def set_hover(self, on: bool) -> None:
+        """滑鼠移上去／移開，只有狀態真的變了才重畫 / The pointer entered or left; redraw only when the state really changed."""
+        on = on and self.enabled
+        if on != self._hover:
+            self._hover = on
             self.draw()
+
+    def set_down(self, on: bool) -> None:
+        """按下去／放開 / Pressed or released."""
+        on = on and self.enabled
+        if on != self._down:
+            self._down = on
+            self.draw()
+
+
+class PillHub:
+    """管這張 Canvas 上所有膠囊按鈕的滑鼠事件：用座標自己判斷落在哪顆，不替圖形綁事件
+
+    Handles the mouse for every pill on a Canvas by hit-testing coordinates itself. Events are NOT bound to the drawn items:
+    a button redraws by deleting and recreating its items, and with item bindings that made Tk send fresh Enter / Leave events
+    under a resting pointer, which redrew again... an endless loop that froze the whole window (shown as "not responding").
+    """
+
+    def __init__(self, cv: tk.Canvas) -> None:
+        self.cv, self.pills = cv, []
+        self.hover: Pill | None = None
+        self.pressed: Pill | None = None
+        cv.bind("<Motion>", self._motion, add="+")
+        cv.bind("<Leave>", self._leave, add="+")
+        cv.bind("<ButtonPress-1>", self._press, add="+")
+        cv.bind("<ButtonRelease-1>", self._release, add="+")
+
+    def add(self, *pills: Pill) -> None:
+        """登記按鈕 / Register buttons."""
+        self.pills.extend(pills)
+
+    def _at(self, x: float, y: float) -> Pill | None:
+        return next((p for p in self.pills if p.contains(x, y)), None)
+
+    def _motion(self, e) -> None:
+        p = self._at(e.x, e.y)
+        if p is self.hover:
+            return
+        if self.hover:
+            self.hover.set_hover(False)
+        self.hover = p
+        if p:
+            p.set_hover(True)
+        self.cv.configure(cursor="hand2" if p and p.enabled else "")
 
     def _leave(self, _e=None) -> None:
-        self._hover = self._down = False
+        if self.hover:
+            self.hover.set_hover(False)
+        self.hover = None
         self.cv.configure(cursor="")
-        self.draw()
 
-    def _press(self, _e=None) -> None:
-        if self.enabled:
-            self._down = True
-            self.draw()
+    def _press(self, e) -> None:
+        self.pressed = self._at(e.x, e.y)
+        if self.pressed:
+            self.pressed.set_down(True)
 
-    def _release(self, _e=None) -> None:
-        fire = self._down and self._hover and self.enabled
-        self._down = False
-        self.draw()
-        if fire:
-            self.command()
+    def _release(self, e) -> None:
+        p, self.pressed = self.pressed, None
+        if p is None:
+            return
+        p.set_down(False)
+        if p.enabled and p.contains(e.x, e.y):
+            p.command()
 
 
 def draw_status_dot(cv: tk.Canvas, cx: float, cy: float, color: str, behind: str, tag: str) -> None:

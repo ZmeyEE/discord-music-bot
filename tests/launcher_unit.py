@@ -77,6 +77,32 @@ r2.proc = subprocess.Popen([sys.executable, str(proj / "bot.py"), "crash"], cwd=
 time.sleep(1.5)
 check("R4 自己結束時 finished() 回傳結束代碼", r2.finished() == 3 and r2.proc is None)
 
+# ============ 重複開啟 ============
+import subprocess
+from botpanel import procs
+TEST_MUTEX = "Local\\DiscordMusicBotLauncherTest%d" % os.getpid()   # 測試用的名字，不會碰到真的控制面板 / a test-only name, never collides with a real panel
+procs.MUTEX_NAME = TEST_MUTEX
+probe = [sys.executable, "-X", "utf8", "-c",
+         "import sys; sys.path.insert(0, sys.argv[1]); from botpanel import procs; procs.MUTEX_NAME = sys.argv[2]; print(procs.single_instance())",
+         os.path.join(ROOT, "launcher"), TEST_MUTEX]
+check("D1 第一個搶到互斥鎖", procs.single_instance() is True)
+second = subprocess.run(probe, capture_output=True, text=True, timeout=30).stdout.strip()
+check("D2 另一個程序搶不到（回傳 False）", second == "False", second)
+procs.release_instance()
+third = subprocess.run(probe, capture_output=True, text=True, timeout=30).stdout.strip()
+check("D3 放開後，別的程序就搶得到（搶輸時沒有留下控制代碼卡住它）", third == "True", third)
+procs.single_instance()   # 我們先搶到 / we take it first
+LOSER = ("import sys, time; sys.path.insert(0, sys.argv[1]); from botpanel import procs; procs.MUTEX_NAME = sys.argv[2];"
+         " print(procs.single_instance(), flush=True); time.sleep(8)")
+loser = subprocess.Popen([sys.executable, "-X", "utf8", "-c", LOSER, os.path.join(ROOT, "launcher"), TEST_MUTEX], stdout=subprocess.PIPE, text=True)
+loser_said = loser.stdout.readline().strip()
+procs.release_instance()                  # 舊的控制面板結束了 / the old panel is gone
+fourth = subprocess.run(probe, capture_output=True, text=True, timeout=30).stdout.strip()
+loser.kill()
+check("D6 搶輸的程序還活著，也不會害別人搶不到（舊版的漏洞：「已經開著」的提示視窗自己卡住了互斥鎖）", loser_said == "False" and fourth == "True", (loser_said, fourth))
+check("D4 找不到的視窗標題回傳 False", procs.focus_existing("沒有這個視窗 launcher-test-xyz") is False)
+check("D5 other_panels 不會把自己算進去", os.getpid() not in procs.other_panels())
+
 # ============ 配色 ============
 check("T1 lerp 兩端", theme.lerp("#000000", "#ffffff", 0) == "#000000" and theme.lerp("#000000", "#ffffff", 1) == "#ffffff" and theme.lerp("#000000", "#ffffff", 0.5) == "#808080")
 check("T2 背景漸層頭尾同看板", theme.bg_at(0) == "#AFA3CB".lower() and theme.bg_at(1) == "#F7E0D3".lower(), (theme.bg_at(0), theme.bg_at(1)))
@@ -123,8 +149,63 @@ app.clear_log()
 check("W9 清除紀錄", app.log.get("1.0", "end").strip() == "")
 root.geometry("740x440+60+60"); drain(app, 400)
 check("W10 縮到最小也畫得出來（不出錯）", app.cv.winfo_width() >= 700)
-app.runner.kill_own()
-root.destroy()
+
+# 滑鼠：按鈕用座標判斷，不綁在圖形上（舊版游標停在按鈕上會無限重畫、視窗變"沒有回應"）
+# Mouse: buttons are hit-tested by coordinates, not bound to items (the old version redrew endlessly under a resting pointer and the window froze)
+from botpanel import widgets
+draws = [0]
+real_draw = widgets.Pill.draw
+widgets.Pill.draw = lambda self: (draws.__setitem__(0, draws[0] + 1), real_draw(self))[1]
+btn = app.b_open
+bx0, by0, bx1, by1 = btn.box
+cx, cy = int((bx0 + bx1) / 2), int((by0 + by1) / 2)
+clicked = []
+btn.command = lambda: clicked.append(1)
+drain(app, 300); before = draws[0]
+app.cv.event_generate("<Motion>", x=cx, y=cy); drain(app, 600)
+check("H1 滑鼠移到按鈕上：只重畫一次，不會一直重畫", btn._hover and app.pills.hover is btn and draws[0] - before <= 2, draws[0] - before)
+before = draws[0]; drain(app, 1500)
+check("H2 游標停著不動：完全不重畫（舊版在這裡無限迴圈）", draws[0] == before, draws[0] - before)
+app.cv.event_generate("<ButtonPress-1>", x=cx, y=cy); app.cv.event_generate("<ButtonRelease-1>", x=cx, y=cy); drain(app, 200)
+check("H3 在按鈕上按下再放開：執行一次動作", clicked == [1], clicked)
+app.cv.event_generate("<ButtonPress-1>", x=cx, y=cy); app.cv.event_generate("<ButtonRelease-1>", x=5, y=5); drain(app, 200)
+check("H4 按下後移到外面才放開：不執行", clicked == [1], clicked)
+app.cv.event_generate("<Motion>", x=5, y=5); drain(app, 300)
+check("H5 移開後恢復原樣", not btn._hover and app.pills.hover is None)
+app.cv.event_generate("<Leave>"); drain(app, 100)
+widgets.Pill.draw = real_draw
+
+# 關視窗時，外部啟動的機器人要先問 / closing the window asks about a bot started elsewhere
+from tkinter import messagebox as mb
+answers, stopped = [None], []
+mb.askyesnocancel = lambda *a, **k: answers[0]
+app.kind, app.runner.proc = "running", None
+app.runner.stop = lambda: stopped.append(1)
+app.on_close()
+check("W11 外部啟動的機器人：關視窗會先問，取消就不關", root.winfo_exists() and not stopped)
+FOCUS_TITLE = "launcher-focus-test-%d" % os.getpid()   # 每次執行不同，同時跑好幾份也不會找到別人的視窗 / unique per run, so concurrent runs never find each other's window
+root.title(FOCUS_TITLE)
+root.iconify(); drain(app, 300)
+focused = procs.focus_existing(FOCUS_TITLE)
+drain(app, 300)
+check("W12 縮小的視窗被叫回前面", focused is True and root.state() == "normal", root.state())
+root.title("Discord 音樂機器人")
+answers[0] = True
+t_end = time.time() + 5
+app.on_close()
+t_call = time.time()
+check("W13 選「是」：停止在背景做，on_close 馬上回來（不卡住視窗）", t_call - (t_end - 5) < 0.5, round(t_call - (t_end - 5), 2))
+closed = False
+while time.time() < t_end:
+    try:
+        root.update()
+        root.winfo_exists()   # 視窗關掉後 update() 不會報錯，但這個會 / after the window is gone update() stays quiet but this raises
+    except tk.TclError:
+        closed = True
+        break
+    time.sleep(0.02)
+check("W14 背景停止完成後視窗才關閉", stopped == [1] and closed, (stopped, closed))
+sys.stdout.flush()
 
 print(f"{sum(res)}/{len(res)} 通過", flush=True)
 sys.exit(0 if all(res) else 1)

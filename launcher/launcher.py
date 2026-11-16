@@ -33,12 +33,33 @@ Build the exe / 打包成 exe:
 from __future__ import annotations
 
 import ctypes
+import time
 import tkinter as tk
 from tkinter import messagebox
 
 from botpanel.paths import APP_TITLE, ask_project, find_project
-from botpanel.procs import single_instance
+from botpanel.procs import focus_existing, kill_tree, other_panels, single_instance
 from botpanel.window import App
+
+
+def already_open() -> bool:
+    """已經有一個控制面板了：先把它的視窗叫到最前面；找不到視窗卻還有舊程序卡在背景，就問要不要關掉它。回傳 True 表示可以接著開新的
+
+    A panel is already open: bring its window to the front first. If there is no window but an old process still hangs in
+    the background, ask whether to close it. Returns True when a new window may be opened.
+    """
+    if focus_existing(APP_TITLE):
+        return False
+    stale = other_panels()
+    if not stale:
+        messagebox.showinfo(APP_TITLE, "控制面板已經開著了。\nThe control panel is already open.")
+        return False
+    if not messagebox.askyesno(APP_TITLE, "控制面板已經在背景執行，但找不到它的視窗。\n要關掉舊的、開一個新的嗎？\n\nAn old panel is running without a window. Close it and open a new one?"):
+        return False
+    for pid in stale:
+        kill_tree(pid)
+    time.sleep(1.0)
+    return single_instance()
 
 
 def main() -> None:
@@ -50,8 +71,9 @@ def main() -> None:
     root = tk.Tk()
     if not single_instance():
         root.withdraw()
-        messagebox.showinfo(APP_TITLE, "控制面板已經開著了。\nThe control panel is already open.")
-        return
+        if not already_open():
+            return
+        root.deiconify()   # 舊的關掉後，這個視窗才要顯示 / the old one is gone, so this window may show now
     project = find_project()
     if project is None:
         root.withdraw()

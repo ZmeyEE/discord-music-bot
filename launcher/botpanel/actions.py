@@ -119,9 +119,31 @@ class ActionsMixin:
             messagebox.showerror(APP_TITLE, str(e))
 
     def on_close(self) -> None:
-        """關閉視窗：機器人還在跑就先確認，並一併停止它 / Closing the window: confirm if the bot is running, and stop it too."""
+        """關閉視窗：自己開的機器人會問一聲並一併停止；不是這個視窗開的（外部啟動）也要問，免得關了視窗它還躲在背景跑
+
+        Closing the window: a bot we started is confirmed and stopped with it. A bot started elsewhere (start.bat...) is asked about too,
+        so it doesn't keep running hidden in the background after the window is gone.
+        """
+        stop = None   # 要在背景執行緒做的停止動作 / the stop to run in a helper thread
         if self.running() or self.busy:
             if not messagebox.askokcancel(APP_TITLE, "機器人還在執行。\n關閉視窗會一併停止機器人，確定要關閉嗎？\nThe bot is still running; closing the window stops it too. Continue?"):
                 return
-            self.runner.kill_own()
-        self.root.destroy()
+            stop = self.runner.kill_own
+        elif self.kind == "running":   # 外部啟動的機器人 / a bot started elsewhere
+            ans = messagebox.askyesnocancel(
+                APP_TITLE,
+                "有機器人在背景執行（不是這個視窗開的）。\n要一併關掉它嗎？\n\n是：關掉機器人再關閉視窗\n否：機器人繼續跑，只關閉視窗\n取消：不關閉\n\n"
+                "A bot started elsewhere is still running.\nYes: stop it and close   No: leave it running   Cancel: stay open",
+            )
+            if ans is None:
+                return
+            if ans:
+                stop = self.runner.stop
+        if stop is None:
+            self.root.destroy()
+            return
+        # 停止要好幾秒（掃描程序、taskkill），在主執行緒做視窗會變"沒有回應"，所以丟到背景，做完再關視窗
+        # Stopping takes seconds (process scan, taskkill); on the main thread the window would show "not responding", so do it in the background and close afterwards.
+        self.busy = True
+        self.set_state("stopping")
+        threading.Thread(target=lambda: (stop(), self.post(self.root.destroy)), daemon=True).start()

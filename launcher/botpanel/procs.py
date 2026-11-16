@@ -9,21 +9,82 @@ import ctypes
 import os
 import queue
 import subprocess
+import sys
 import threading
+from ctypes import wintypes
 from pathlib import Path
 
 MUTEX_NAME = "Local\\DiscordMusicBotLauncher"   # 單一實例用的 Windows 互斥鎖名稱 / Windows mutex name for the single-instance guard
 NO_WINDOW = 0x08000000                           # CREATE_NO_WINDOW：子程序不要跳出黑色視窗 / CREATE_NO_WINDOW: no console window for child processes
 
 
-def single_instance() -> bool:
-    """同一時間只允許一個控制面板，避免不小心開出兩個機器人
+_instance_handle = None   # 搶到的互斥鎖，程式結束才放開 / the mutex we hold until the program ends
 
-    Allow only one control panel at a time so you can't accidentally start two bots.
+_k32 = ctypes.WinDLL("kernel32", use_last_error=True) if os.name == "nt" else None
+_u32 = ctypes.WinDLL("user32", use_last_error=True) if os.name == "nt" else None
+if _k32 is not None:
+    _k32.CreateMutexW.restype = wintypes.HANDLE
+    _k32.CreateMutexW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR]
+    _k32.CloseHandle.argtypes = [wintypes.HANDLE]
+    _u32.FindWindowW.restype = wintypes.HWND
+    _u32.FindWindowW.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR]
+    _u32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+    _u32.SetForegroundWindow.argtypes = [wintypes.HWND]
+
+
+def single_instance() -> bool:
+    """同一時間只允許一個控制面板，避免不小心開出兩個機器人；搶輸了會把自己拿到的控制代碼關掉，舊的結束後才搶得到
+
+    Allow only one control panel at a time so you can't accidentally start two bots. When we lose, our own handle is closed,
+    otherwise it would keep the mutex alive even after the old panel is gone.
     """
-    h = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
+    global _instance_handle
+    h = _k32.CreateMutexW(None, False, MUTEX_NAME)
+    if not h:
+        return False
     ERROR_ALREADY_EXISTS = 183
-    return bool(h) and ctypes.windll.kernel32.GetLastError() != ERROR_ALREADY_EXISTS
+    if ctypes.get_last_error() == ERROR_ALREADY_EXISTS:
+        _k32.CloseHandle(h)
+        return False
+    _instance_handle = h
+    return True
+
+
+def release_instance() -> None:
+    """放開互斥鎖（測試用）/ Release the mutex (for tests)."""
+    global _instance_handle
+    if _instance_handle:
+        _k32.CloseHandle(_instance_handle)
+        _instance_handle = None
+
+
+def focus_existing(title: str) -> bool:
+    """把已經開著的控制面板視窗叫到最前面（縮小了就還原）；找不到視窗回傳 False
+
+    Bring the already open panel window to the front (restoring it if minimised); False when no such window exists.
+    """
+    hwnd = _u32.FindWindowW(None, title)
+    if not hwnd:
+        return False
+    _u32.ShowWindow(hwnd, 9)          # SW_RESTORE
+    _u32.SetForegroundWindow(hwnd)
+    return True
+
+
+def other_panels() -> list[int]:
+    """其他還在背景跑的控制面板程序（不含自己和自己的 exe 啟動器），找不到視窗卻又擋住新視窗的就是它們
+
+    Other control-panel processes still running (not ourselves nor our own exe bootloader). These are what blocks a new window
+    when there is no window left to bring forward.
+    """
+    me = {os.getpid(), os.getppid()}
+    if getattr(sys, "frozen", False):
+        cond = "$_.ExecutablePath -eq '" + sys.executable.replace("'", "''") + "'"
+    else:
+        cond = "$_.Name -eq 'python.exe' -and $_.CommandLine -like '*launcher.py*'"
+    out = run_hidden(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+                      "Get-CimInstance Win32_Process | Where-Object { " + cond + " } | ForEach-Object { $_.ProcessId }"])
+    return [int(x) for x in out.split() if x.isdigit() and int(x) not in me]
 
 
 def run_hidden(args: list[str], timeout: int = 15) -> str:

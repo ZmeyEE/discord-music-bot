@@ -20,7 +20,7 @@ from .actions import ActionsMixin
 from .logview import LogMixin
 from .paths import APP_TITLE, dashboard_url
 from .procs import BotRunner
-from .widgets import Pill, draw_background, draw_card, draw_logo, draw_status_dot
+from .widgets import Pill, PillHub, draw_background, draw_card, draw_logo, draw_status_dot
 
 MARGIN = 22
 
@@ -105,6 +105,8 @@ class App(ActionsMixin, LogMixin):
         self.b_clear = Pill(self.cv, "清除紀錄", self.clear_log, f, "ghost")
         self.controls = (self.b_start, self.b_stop, self.b_restart)
         self.tools = (self.b_clear, self.b_folder, self.b_open)
+        self.pills = PillHub(self.cv)          # 滑鼠事件由它用座標判斷，不綁在圖形上（見 widgets.PillHub）/ mouse events by hit-testing, not bound to items (see widgets.PillHub)
+        self.pills.add(*self.controls, *self.tools)
 
     def _on_resize(self, _e=None) -> None:
         """視窗大小變了：稍等一下再重畫，拖曳時不要每格都畫 / Window resized: redraw after a short pause, not on every pixel of a drag."""
