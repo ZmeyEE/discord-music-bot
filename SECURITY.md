@@ -15,8 +15,9 @@ Please do **not** open a public issue with the details, use GitHub's "Report a v
 
 ## 已知問題 / Known issues
 
-- **PyNaCl 1.5.0（CVE-2025-69277，libsodium 的 `crypto_core_ed25519_is_valid_point`）**：`pip-audit` 會回報，修正版是 1.6.2，但 discord.py 目前把它鎖在 `<1.6`，所以暫時不能升級；這個專案不會呼叫該函式（那是特殊用途的自訂密碼學），Discord 語音只用一般的加解密，實際不受影響，discord.py 放寬版本限制後會跟進升級
-  **PyNaCl 1.5.0 (CVE-2025-69277, libsodium `crypto_core_ed25519_is_valid_point`)**: reported by `pip-audit`, fixed in 1.6.2, but discord.py currently pins it to `<1.6` so it can't be upgraded yet; this project never calls that function (it is for special custom cryptography), Discord voice only uses ordinary encryption, so it is not affected in practice; we will upgrade once discord.py relaxes the pin
+- **PyNaCl**：1.1.0 起要求 `>=1.6.2`（1.5.0 有 CVE-2025-69277 等 2 個已知問題）。`discord.py[voice]` 把它鎖在 `<1.6`，所以 `requirements.txt` 直接列出 PyNaCl 和 davey，不用 `[voice]`，全部測試在 1.6.2 上通過；如果你的環境是舊的，重新跑 `pip install -r requirements.txt` 就會升級
+  **PyNaCl**: since 1.1.0 it must be `>=1.6.2` (1.5.0 has CVE-2025-69277 and one more known issue). `discord.py[voice]` pins it to `<1.6`, so `requirements.txt` lists PyNaCl and davey directly instead of `[voice]`; all tests pass on 1.6.2. If your environment is old, run `pip install -r requirements.txt` again to upgrade
+- **davey 要鎖 `<0.2`**：discord.py 2.7.1（目前最新）還不支援 davey 0.2，升上去會變成"能進頻道但沒有聲音"，啟動時有檢查會擋下來 / **davey must stay `<0.2`**: discord.py 2.7.1 (the latest) doesn't support davey 0.2 yet, upgrading gives "joins but silent", and a start-up check stops it
 - 中繼站預設綁定 `0.0.0.0`（本來就是給公網用的），只想在本機測試的話，在 `.env` 設 `RELAY_HOST=127.0.0.1` / the relay binds `0.0.0.0` by default (it is meant for the public internet), set `RELAY_HOST=127.0.0.1` in `.env` for local testing only
 
 ## 發版前檢查 / Pre-release checks

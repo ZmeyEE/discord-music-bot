@@ -4,7 +4,7 @@
 這份給想改它的人：新增語言、改配色、優化音源到 Discord 的路徑、把看板 UI 用在別的地方
 (English version: [DEVELOPING.en.md](DEVELOPING.en.md))
 
-版本：**1.0.1** · 授權：[Unlicense](../LICENSE)（公有領域，想怎麼改都可以）· 第三方清單：[THIRD_PARTY.md](../THIRD_PARTY.md)
+版本：**1.1.0** · 授權：[Unlicense](../LICENSE)（公有領域，想怎麼改都可以）· 第三方清單：[THIRD_PARTY.md](../THIRD_PARTY.md)
 
 ## 1. 專案地圖
 
@@ -80,28 +80,29 @@ copy .env.example .env                                           # 再把 DISCOR
 
 ## 5. 新增語言
 
-先講實話：1.0.1 **還沒有 i18n 機制**，文字都直接寫在程式裡（繁體中文）
-所以現在要加語言就是改字串，而做出 i18n 機制會是最有價值的第一個貢獻
+1.1.0 起網頁看板有多語言了（繁中、簡中、English、日本語），Discord 訊息和斜線指令還沒有
 
-文字在哪裡（大概的行數）：
+**網頁看板加語言**（`web/i18n.js`）：
 
-| 位置 | 內容 | 行數 |
-| --- | --- | --- |
-| `web/index.html` | 標籤、按鈕、提示 | 約 44 |
-| `web/app.js` | 提示訊息、狀態文字、對話框 | 約 94 |
-| `musicbot/commands.py` | 斜線指令名稱、說明、回覆 | 約 73 |
-| `musicbot/hub.py` `player.py` `dashboard.py` `app.py` `health.py` `relay.py` | 公告、錯誤、log | 約 180 |
+1. 在 `LANGS` 加一行，例如 `["ko", "한국어"]`，`HTML_LANG` 加對應的 `<html lang>`
+2. 照 `"zh-TW"` 那一組，在 `D` 裡新增同名的一組，把每個 key 翻過去
+3. 缺的 key 會自動用繁體中文，所以可以先翻一部分
+4. 重新整理就看得到，右上角選單會多一個選項
 
-可以自己用中日韓字元搜尋找出來，例如 `rg "[一-鿿]" web musicbot`
+用法：HTML 標 `data-i18n="key"`（文字）、`data-i18n-html`（有 `<b>` `<code>` 的）、`data-i18n-title`／`-aria`／`-ph`／`-alt`；JS 用 `T("key", { name: "x" })`，`{name}` 會被換掉
 
-想做得完整的話，建議這樣做：
+換語言會存在瀏覽器（`localStorage` 的 `mb_lang`）然後重新整理，所以不用處理畫面上的舊文字
 
-1. **網頁**：新增 `web/i18n/<語言>.js`（一個 `{ "key": "文字" }` 物件），在 `app.js` 加一個小小的 `t(key)`，HTML 用 `data-i18n="key"` 標記，語言從 `navigator.language`（或 `?lang=`／存起來的選擇）決定
-2. **伺服器回覆**：把 `commands.py`／`hub.py`／`player.py` 裡的字串集中到一個 `messages.py`，用 id 當 key，語言由 `.env` 設定（例如 `BOT_LANG=en`）
-3. **斜線指令**：discord.py 支援指令在地化（`app_commands.locale_str` + `Translator`），用它讓每個人看到自己 Discord 語言的指令
-4. 預設仍然是中文，現有使用者不受影響，並加一個測試確認每個語言檔的 key 都齊全
+**還沒做的**（找字串：`rg "[一-鿿]" musicbot`）：
 
-只是自己要用另一個語言的話，最快是照上面的表格逐一取代字串，再跑測試確認
+| 位置 | 內容 |
+| --- | --- |
+| `musicbot/commands.py` | 斜線指令名稱、說明、回覆 |
+| `musicbot/hub.py` `player.py` `dashboard.py` `health.py` `relay.py` | 公告、錯誤，會顯示在看板的提示也在這裡 |
+
+1. **伺服器回覆**：字串集中到一個 `messages.py`，用 id 當 key，語言由 `.env` 設定（例如 `BOT_LANG=en`）
+2. **斜線指令**：discord.py 支援指令在地化（`app_commands.locale_str` + `Translator`）
+3. 預設維持繁體中文，並加一個測試確認每個語言的 key 都齊全
 
 ## 6. 優化音源 → Discord 的路徑
 

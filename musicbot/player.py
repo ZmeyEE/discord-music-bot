@@ -17,6 +17,7 @@ Playback pipeline / 播放流程:
 from __future__ import annotations
 
 import asyncio
+import itertools
 import logging
 import os
 import random
@@ -33,7 +34,7 @@ from . import config
 from .config import find_ffmpeg, target_bitrate
 from .health import StreamProbe, probe_source
 from .paths import LOG_DIR
-from .sources import Stream, Track, enrich_track, extract_stream, resolve_tracks
+from .sources import Stream, Track, enrich_track, extract_stream_for, resolve_tracks
 
 if TYPE_CHECKING:
     from .hub import Hub
@@ -45,6 +46,8 @@ LOOP_LABEL = {"off": "關閉", "single": "單曲循環", "queue": "列表循環"
 
 # 閒置自動離開（秒），分身離開語音頻道後才能被其他頻道接手；設成 0 代表不自動離開
 # Idle auto-leave (seconds). A clone can only be taken over by another channel after it leaves; 0 = never leave.
+MAX_QUEUE = config.env_int("MAX_QUEUE", 5000)                      # 一個伺服器的待播清單最多幾首 / max songs in one server's queue
+QUEUE_VIEW = 1000   # 看板一次最多畫幾張待播卡片，5000 首全送一次要 1.7MB，中繼站單則訊息上限 4MB / cards the dashboard draws at once: all 5000 songs are 1.7 MB per update and the relay caps a message at 4 MB
 EMPTY_LEAVE_SECONDS = config.env_int("EMPTY_LEAVE_SECONDS", 120)   # 頻道內只剩機器人 / only bots left in the channel
 IDLE_LEAVE_SECONDS = config.env_int("IDLE_LEAVE_SECONDS", 300)     # 沒有在播也沒有待播 / nothing playing and nothing queued
 
@@ -281,7 +284,7 @@ class PlayerBot(discord.Client):
                 st.current, st.stream, st.started_at = track, None, 0.0
                 self.notify(guild.id)
                 try:
-                    stream = await asyncio.to_thread(extract_stream, track.url)   # yt-dlp 會卡住執行緒，所以丟到背景執行緒 / yt-dlp blocks, so run it in a worker thread
+                    stream = await asyncio.to_thread(extract_stream_for, track)   # yt-dlp 會卡住執行緒，所以丟到背景執行緒 / yt-dlp blocks, so run it in a worker thread
                 except Exception as exc:  # noqa: BLE001 - 解析失敗就跳下一首 / resolving failed: move on to the next track
                     log.warning("解析失敗 %s: %s", track.url, exc)
                     st.current = None
@@ -295,16 +298,21 @@ class PlayerBot(discord.Client):
 
                 track.title = track.title or stream.title
                 track.thumbnail = track.thumbnail or stream.thumbnail
-                track.duration = track.duration or (int(stream.duration) if stream.duration else None)
+                if track.search and stream.duration:   # Spotify 的歌：進度條要跟實際播的影片一樣長 / a Spotify track: the seek bar must match the video that actually plays
+                    track.duration = int(stream.duration)
+                else:
+                    track.duration = track.duration or (int(stream.duration) if stream.duration else None)
                 offset = st.start_offset if st.start_offset_id == track.id else 0.0
                 st.start_offset, st.start_offset_id = 0.0, ""
                 bitrate = self._play_stream(guild, vc, track, stream, offset)
                 self.notify(guild.id)
+                self._enrich_ahead(guild.id)
                 if st.last_announced != track.id:
                     st.last_announced = track.id
+                    matched = f"\n對應影片：{track.matched}" if track.matched else ""
                     await self._say(
                         st,
-                        f"正在播放：**{track.title}**\n"
+                        f"正在播放：**{track.title}**{matched}\n"
                         f"來源音質 `{stream.quality}` → 傳送 `Opus {bitrate}kbps`",
                     )
                 break
@@ -577,19 +585,26 @@ class PlayerBot(discord.Client):
             return [], f"解析失敗：{str(exc)[:200]}"
         if not tracks:
             return [], "找不到可播放的內容"
+        st = self.state(guild.id)
+        room = MAX_QUEUE - len(st.queue)
+        if room <= 0:
+            return [], f"待播清單已經滿了（上限 {MAX_QUEUE} 首）"
+        note = f"清單只剩 {room} 個位置，只加入前 {room} 首（上限 {MAX_QUEUE} 首）" if len(tracks) > room else None
+        tracks = tracks[:room]
         for t in tracks:      # 每次都明確指定（包含空字串），避免沿用快取裡上一位點歌者的頭像 / always set it explicitly (even ""), so a cached result doesn't keep the previous requester's avatar
             t.requester_avatar = requester_avatar
-        st = self.state(guild.id)
         if when == "end":
             st.queue.extend(tracks)
         else:
             st.queue.extendleft(reversed(tracks))   # 保持多首的原順序，整批插到最前面 / keep the original order of multiple tracks while inserting them at the front
         self.notify(guild.id)
         if len(tracks) == 1:
-            if not tracks[0].thumbnail or not tracks[0].title:
+            if not tracks[0].search and (not tracks[0].thumbnail or not tracks[0].title):
                 await asyncio.to_thread(enrich_track, tracks[0])
         else:
-            pending = [t for t in tracks if not t.thumbnail]
+            # 只先補前 50 首，其餘等輪到前面時由 _enrich_ahead 補，不然 5000 首會打 5000 次站方
+            # Only the first 50 now; the rest are filled by _enrich_ahead as they get close, or 5000 songs would hit the site 5000 times.
+            pending = [t for t in tracks if not t.thumbnail and not t.search][:50]
             if pending:
                 asyncio.create_task(self.enrich_many(guild.id, pending))
         self.notify(guild.id)
@@ -603,7 +618,14 @@ class PlayerBot(discord.Client):
             self.skip(guild)                         # 跳過目前這首，換成剛插到最前面的 / skip the current song so the one just inserted at the front plays
         else:
             await self.ensure_playing(guild)
-        return tracks, None
+        return tracks, note
+
+    def _enrich_ahead(self, guild_id: int) -> None:
+        """開始播一首時，順便補後面 10 首的縮圖和標題（每首只試一次）
+        When a song starts, also fill in the next 10 queued songs (each is tried only once)."""
+        nxt = [t for t in itertools.islice(self.state(guild_id).queue, 10) if not t.thumbnail and not t.enriched and not t.search]
+        if nxt:
+            asyncio.create_task(self.enrich_many(guild_id, nxt))
 
     def skip(self, guild: discord.Guild) -> bool:
         """跳過目前這首；有東西可跳回傳 True / Skip the current song; returns True if there was something to skip."""
@@ -759,5 +781,6 @@ class PlayerBot(discord.Client):
             "paused": bool(vc and vc.is_paused()),
             "loop": st.loop,
             "current": cur,
-            "queue": [t.public() for t in st.queue],
+            "queue": [t.public() for t in itertools.islice(st.queue, QUEUE_VIEW)],
+            "queue_total": len(st.queue),
         }

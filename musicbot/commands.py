@@ -123,7 +123,7 @@ def register(hub: Hub) -> None:
         embed.add_field(
             name="指令",
             value=(
-                "`/play` 貼網址、BV 號或關鍵字（可選：下一首／立刻播放）\n"
+                "`/play` 貼網址（Bilibili／YouTube／Spotify）、BV 號或關鍵字（可選：下一首／立刻播放）\n"
                 "`/join` 讓機器人進入你的語音頻道\n"
                 "`/skip` `/pause` `/resume` `/stop` `/loop`\n"
                 "`/queue` `/nowplaying` `/quality` `/players`\n"

@@ -3,6 +3,23 @@
 格式參考 [Keep a Changelog](https://keepachangelog.com/)，版本號遵循 [SemVer](https://semver.org/lang/zh-TW/)
 Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [SemVer](https://semver.org/)
 
+## [1.1.0] - 2026-11-16
+
+### 新增 / Added
+- Spotify 連結（單曲、專輯、播放清單）：讀歌名和歌手，去 Bilibili（不行換 YouTube）找對應的歌，播放清單最多讀到 100 首 / Spotify links (track, album, playlist): read title and artists, match the song on Bilibili (YouTube as a fallback), playlists are read up to 100 songs
+- 合集一次最多 5000 首（原本 50），一個伺服器的待播清單最多 5000 首（`MAX_QUEUE`）/ a playlist adds up to 5000 songs at once (was 50), one server's queue holds up to 5000 (`MAX_QUEUE`)
+- 看板多語言：繁中（預設）、簡中、English、日本語，右上角選單，底下小標 Language / dashboard languages: Traditional Chinese (default), Simplified Chinese, English, Japanese, menu at the top right with a small "Language" caption
+- Windows 效能調整：優先權高一級、關掉省電降速、1 ms 計時（`TUNE_PROCESS=0` 關閉）/ Windows tuning: priority one step up, no power throttling, 1 ms timer (`TUNE_PROCESS=0` to skip)
+
+### 變更 / Changed
+- 看板一次最多畫前 1000 張待播卡片（5000 首全送一次要 1.7 MB），總數另外顯示 / the dashboard draws at most the first 1000 queued cards (all 5000 would be 1.7 MB per update), the total is shown separately
+- 補縮圖改成先補前 50 首，之後播到哪補到哪，不再一次打幾千次站方 / thumbnails are filled for the first 50, then as songs get close, instead of thousands of requests at once
+- PyNaCl 升到 1.6.2（修掉 pip-audit 的 2 個已知漏洞），不再用 `discord.py[voice]`，因為它把 PyNaCl 鎖在 `<1.6` / PyNaCl 1.6.2 (fixes the 2 known issues pip-audit reported), `discord.py[voice]` is no longer used because it pins PyNaCl `<1.6`
+
+### 實測 / Measured
+- i5-12400F 上 120 個頻道同時送包：Python 約 30% 單核，沒有任何包遲到超過 40 ms / 120 simultaneous channels on an i5-12400F: Python about 30% of one core, no packet later than 40 ms
+- 同時播放的頻道數就是 bot 帳號數，沒有人為上限，要更多頻道就加分身 / the number of simultaneous channels equals the number of bot accounts, there is no artificial cap, add clones for more
+
 ## [1.0.1] - 2026-11-14
 
 ### 修正 / Fixes

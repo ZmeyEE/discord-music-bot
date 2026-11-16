@@ -29,6 +29,21 @@ check("B1 gateway 重連等待上限 <= 16 秒（原本最多約 1024 秒）", w
 check("B2 語音重連用同一個上限", discord.voice_state.ExponentialBackoff is discord.client.ExponentialBackoff)
 
 
+# ============ Windows 效能調整 ============
+if os.name == "nt":
+    import ctypes
+    from musicbot.app import tune_process
+    got = tune_process()
+    k32 = ctypes.WinDLL("kernel32")
+    k32.GetCurrentProcess.restype = ctypes.c_void_p
+    k32.GetPriorityClass.argtypes = [ctypes.c_void_p]
+    check("W1 優先權設成高於一般", got.get("priority") and k32.GetPriorityClass(k32.GetCurrentProcess()) == 0x8000, got)
+    check("W2 省電降速與 1ms 計時都套用成功", got.get("no_throttle") and got.get("timer_1ms"), got)
+    os.environ["TUNE_PROCESS"] = "0"
+    check("W3 TUNE_PROCESS=0 時什麼都不做", tune_process() == {})
+    del os.environ["TUNE_PROCESS"]
+
+
 # ============ 語音被踢後接著播 ============
 class Chan:
     def __init__(self, humans): self.id = 7; self.members = [SimpleNamespace(bot=False)] * humans

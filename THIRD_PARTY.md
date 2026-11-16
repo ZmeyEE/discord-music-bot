@@ -50,6 +50,7 @@ These are not libraries, but their terms apply when you use them
 - **Discord**：[Developer Terms](https://discord.com/developers/docs/policies-and-agreements/developer-terms-of-service) 與 Developer Policy / Developer Terms and Developer Policy
 - **Bilibili**：官方登入 API 與服務條款，只儲存登入後的 cookie，不接觸密碼 / official login API and its terms; only the resulting cookies are stored, never the password
 - **YouTube 與其他 yt-dlp 支援的網站 / YouTube and other yt-dlp sites**：各站的服務條款與當地著作權規定 / each site's terms and local copyright law
+- **Spotify**：只讀公開嵌入頁的歌名和歌手，不下載也不播放 Spotify 的音訊，沒有用 Spotify API 也不需要金鑰 / only reads title and artists from the public embed page, never downloads or plays Spotify audio, no Spotify API and no key
 - **Cloudflare Quick Tunnel、Tailscale 等（選用）/ optional**：只在你選擇用它們分享看板時才會用到 / only when you choose them to share the dashboard
 
 ## 給開發者的提醒 / Notes for contributors

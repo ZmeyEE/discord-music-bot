@@ -10,7 +10,7 @@
   <!-- 不送 Referer：Bilibili 圖床會擋站外來源的縮圖 / send no Referer: Bilibili's CDN blocks thumbnails requested from other sites -->
   <meta name="referrer" content="no-referrer">
   <meta name="color-scheme" content="light">
-  <title>音樂看板</title>
+  <title data-i18n="title">音樂看板</title>
 
   <!-- 字體：粉圓 Huninn（繁中圓體）＋ Nunito（數字／英文），載入失敗時自動退回系統字體
        Fonts: Huninn (rounded Traditional Chinese) + Nunito (digits / Latin). Falls back to system fonts if loading fails. -->
@@ -98,33 +98,39 @@
   <div class="brand">
     <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-disc"/></svg>
     <div class="brand-text">
-      <h1 id="guildName">音樂看板</h1>
-      <p class="status" id="status" role="status">連線中…</p>
+      <h1 id="guildName" data-i18n="brand">音樂看板</h1>
+      <p class="status" id="status" role="status" data-i18n="connecting">連線中…</p>
     </div>
   </div>
 
   <div class="controls">
     <!-- 音質：Opus 位元率，切換後正在播放的歌會從原位置用新音質重新開始，方便用耳朵 A/B 比較
          Quality: Opus bitrate. After switching, the song restarts from the same position at the new quality, handy for A/B listening. -->
-    <div class="seg seg-quality" id="qualityBtns" role="radiogroup" aria-label="音質（Opus 位元率）">
-      <span class="seg-label">音質</span>
-      <button type="button" role="radio" data-q="128" title="標準：128 kbps（約 16 KB/s）">128</button>
-      <button type="button" role="radio" data-q="192" title="高：192 kbps（預設）">192</button>
-      <button type="button" role="radio" data-q="256" title="極高：256 kbps">256</button>
-      <button type="button" role="radio" data-q="320" title="最高：320 kbps（約 40 KB/s）">320</button>
-      <button type="button" role="radio" data-q="510" title="Opus 規格上限：510 kbps（搭配無損來源時用）">510</button>
+    <div class="seg seg-quality" id="qualityBtns" role="radiogroup" aria-label="音質（Opus 位元率）" data-i18n-aria="qualityAria">
+      <span class="seg-label" data-i18n="quality">音質</span>
+      <button type="button" role="radio" data-q="128" title="標準：128 kbps（約 16 KB/s）" data-i18n-title="q128">128</button>
+      <button type="button" role="radio" data-q="192" title="高：192 kbps（預設）" data-i18n-title="q192">192</button>
+      <button type="button" role="radio" data-q="256" title="極高：256 kbps" data-i18n-title="q256">256</button>
+      <button type="button" role="radio" data-q="320" title="最高：320 kbps（約 40 KB/s）" data-i18n-title="q320">320</button>
+      <button type="button" role="radio" data-q="510" title="Opus 規格上限：510 kbps（搭配無損來源時用）" data-i18n-title="q510">510</button>
     </div>
 
-    <div class="seg" id="loopBtns" role="radiogroup" aria-label="循環模式">
-      <button type="button" role="radio" data-loop="off"    title="播完就換下一首"><svg class="i"><use href="#i-loop-off"/></svg><span>不循環</span></button>
-      <button type="button" role="radio" data-loop="single" title="一直重複目前這首"><svg class="i"><use href="#i-loop-one"/></svg><span>單曲循環</span></button>
-      <button type="button" role="radio" data-loop="queue"  title="播完的歌排到清單最後"><svg class="i"><use href="#i-loop-list"/></svg><span>列表循環</span></button>
+    <div class="seg" id="loopBtns" role="radiogroup" aria-label="循環模式" data-i18n-aria="loopAria">
+      <button type="button" role="radio" data-loop="off"    title="播完就換下一首" data-i18n-title="loopOffTip"><svg class="i"><use href="#i-loop-off"/></svg><span data-i18n="loopOff">不循環</span></button>
+      <button type="button" role="radio" data-loop="single" title="一直重複目前這首" data-i18n-title="loopOneTip"><svg class="i"><use href="#i-loop-one"/></svg><span data-i18n="loopOne">單曲循環</span></button>
+      <button type="button" role="radio" data-loop="queue"  title="播完的歌排到清單最後" data-i18n-title="loopQueueTip"><svg class="i"><use href="#i-loop-list"/></svg><span data-i18n="loopQueue">列表循環</span></button>
+    </div>
+
+    <!-- 語言：預設繁體中文，底下一行小標 Language / language: Traditional Chinese by default, with a small "Language" caption under it -->
+    <div class="lang">
+      <select id="langSelect" class="lang-select" aria-label="Language"></select>
+      <small class="lang-cap">Language</small>
     </div>
   </div>
 </header>
 
 <!-- 多個播放器（分身）時才出現：每個頻道一個分頁 / only shown with several players (clones): one tab per channel -->
-<nav id="playersBar" class="players" aria-label="播放器" hidden></nav>
+<nav id="playersBar" class="players" aria-label="播放器" data-i18n-aria="playersAria" hidden></nav>
 <!-- 不在語音頻道時的唯讀提示 / read-only hint when you are not in a voice channel -->
 <div id="permBanner" class="perm" role="status" hidden></div>
 <!-- 偵測到卡頓、機器人自動降低同時播放的頻道數時的公告 / announcement shown when the bot lowered the simultaneous-channel cap after detecting stutter -->
@@ -134,14 +140,14 @@
 
   <!-- 左：正在播放 / left: now playing -->
   <section class="panel col-now" aria-labelledby="h-now">
-    <h2 class="panel-title" id="h-now">正在播放</h2>
+    <h2 class="panel-title" id="h-now" data-i18n="nowPlaying">正在播放</h2>
     <div id="nowDrop" class="now-drop"></div>
-    <p class="hint">把待播卡片拖到這裡，立即播放</p>
+    <p class="hint" data-i18n="dropHint">把待播卡片拖到這裡，立即播放</p>
 
     <!-- 只有機器人擁有者看得到 / visible to the bot owner only -->
     <button type="button" id="biliBtn" class="bili-btn" hidden>
       <span class="bili-avatar" id="biliAvatar"></span>
-      <span class="bili-text"><span id="biliTitle">Bilibili 帳號</span><small id="biliSub"></small></span>
+      <span class="bili-text"><span id="biliTitle" data-i18n="biliAccount">Bilibili 帳號</span><small id="biliSub"></small></span>
       <svg class="i" aria-hidden="true"><use href="#i-swap"/></svg>
     </button>
   </section>
@@ -149,39 +155,40 @@
   <!-- 中：待播清單＋加歌輸入框 / middle: the queue + the add-song box -->
   <section class="panel col-queue" aria-labelledby="h-queue">
     <header class="panel-head">
-      <h2 class="panel-title" id="h-queue">待播清單 <span id="queueCount" class="count">0</span></h2>
+      <h2 class="panel-title" id="h-queue"><span data-i18n="queueTitle">待播清單</span> <span id="queueCount" class="count">0</span></h2>
       <div class="tools">
-        <button type="button" id="btnShuffle" class="tool-btn" title="隨機打亂順序" aria-label="隨機打亂順序"><svg class="i"><use href="#i-shuffle"/></svg></button>
-        <button type="button" id="btnClear" class="tool-btn" title="清空待播清單" aria-label="清空待播清單"><svg class="i"><use href="#i-clear"/></svg><span class="armed-text">再按一次清空</span></button>
+        <button type="button" id="btnShuffle" class="tool-btn" title="隨機打亂順序" aria-label="隨機打亂順序" data-i18n-title="shuffle" data-i18n-aria="shuffle"><svg class="i"><use href="#i-shuffle"/></svg></button>
+        <button type="button" id="btnClear" class="tool-btn" title="清空待播清單" aria-label="清空待播清單" data-i18n-title="clearList" data-i18n-aria="clearList"><svg class="i"><use href="#i-clear"/></svg><span class="armed-text" data-i18n="clearAgain">再按一次清空</span></button>
       </div>
     </header>
 
     <div id="queueEmpty" class="empty">
       <svg class="i empty-art" aria-hidden="true"><use href="#i-cloud"/></svg>
-      <p>清單是空的</p>
-      <p class="sub">在下方貼上網址，或在 Discord 使用 /play</p>
+      <p data-i18n="emptyTitle">清單是空的</p>
+      <p class="sub" data-i18n="emptySub">在下方貼上網址，或在 Discord 使用 /play</p>
     </div>
-    <div id="queue" class="cards" aria-label="待播卡片，可拖曳調整順序"></div>
+    <div id="queue" class="cards" aria-label="待播卡片，可拖曳調整順序" data-i18n-aria="queueAria"></div>
+    <p id="queueMore" class="queue-more" hidden></p>
 
     <form id="addForm" class="adder" autocomplete="off">
       <label class="adder-field">
         <svg class="i" aria-hidden="true"><use href="#i-link"/></svg>
-        <input id="addInput" type="text" spellcheck="false" aria-label="歌曲網址或關鍵字"
-               placeholder="貼上 Bilibili／YouTube 網址、BV 號，或輸入關鍵字">
+        <input id="addInput" type="text" spellcheck="false" aria-label="歌曲網址或關鍵字" data-i18n-aria="addAria"
+               placeholder="貼上 Bilibili／YouTube／Spotify 網址、BV 號，或輸入關鍵字" data-i18n-ph="addPh">
       </label>
-      <button type="button" id="btnNext" class="btn-ghost" title="插到最前面，這首播完就換它（Shift+Enter）">下一首</button>
-      <button type="submit" class="btn-primary" title="加到清單最後（Enter）">加入</button>
+      <button type="button" id="btnNext" class="btn-ghost" title="插到最前面，這首播完就換它（Shift+Enter）" data-i18n-title="nextTip" data-i18n="next">下一首</button>
+      <button type="submit" class="btn-primary" title="加到清單最後（Enter）" data-i18n-title="addTip" data-i18n="add">加入</button>
     </form>
     <p id="detect" class="detect" aria-live="polite"></p>
   </section>
 
   <!-- 右：刪除區 / right: trash zone -->
-  <section class="panel col-trash" id="trashCol" aria-label="刪除區">
-    <h2 class="panel-title">刪除區</h2>
+  <section class="panel col-trash" id="trashCol" aria-label="刪除區" data-i18n-aria="trashTitle">
+    <h2 class="panel-title" data-i18n="trashTitle">刪除區</h2>
     <div id="trash" class="trash"></div>
     <div class="trash-center" aria-hidden="true">
       <svg class="i trash-icon"><use href="#i-trash"/></svg>
-      <p>拖到這裡放開<br>即可刪除</p>
+      <p data-i18n-html="trashHint">拖到這裡放開<br>即可刪除</p>
     </div>
   </section>
 </main>
@@ -190,8 +197,8 @@
 <dialog id="biliDialog" class="dlg" aria-labelledby="biliDlgTitle">
   <div class="dlg-box">
     <header class="dlg-head">
-      <h2 id="biliDlgTitle">Bilibili 帳號</h2>
-      <button type="button" class="tool-btn" id="biliClose" aria-label="關閉"><svg class="i"><use href="#i-close"/></svg></button>
+      <h2 id="biliDlgTitle" data-i18n="biliAccount">Bilibili 帳號</h2>
+      <button type="button" class="tool-btn" id="biliClose" aria-label="關閉" data-i18n-aria="close"><svg class="i"><use href="#i-close"/></svg></button>
     </header>
 
     <!-- 目前帳號 / current account -->
@@ -202,15 +209,15 @@
 
     <!-- 掃碼 / QR scan -->
     <div id="biliQrBox" class="qr-box" hidden>
-      <img id="biliQr" class="qr" alt="Bilibili 登入 QR 碼" width="220" height="220">
-      <p id="biliQrStatus" class="qr-status" role="status">請用 Bilibili App 掃描</p>
+      <img id="biliQr" class="qr" alt="Bilibili 登入 QR 碼" data-i18n-alt="biliQrAlt" width="220" height="220">
+      <p id="biliQrStatus" class="qr-status" role="status" data-i18n="biliScan">請用 Bilibili App 掃描</p>
     </div>
 
     <div id="biliNote" class="bili-note"></div>
 
     <footer class="dlg-actions">
-      <button type="button" id="biliLogout" class="btn-ghost danger" hidden>登出</button>
-      <button type="button" id="biliStart" class="btn-primary">掃碼登入</button>
+      <button type="button" id="biliLogout" class="btn-ghost danger" data-i18n="logout" hidden>登出</button>
+      <button type="button" id="biliStart" class="btn-primary" data-i18n="scanLogin">掃碼登入</button>
     </footer>
   </div>
 </dialog>
@@ -218,29 +225,29 @@
 <!-- 驗證模式：還沒用專屬連結確認身分時顯示 / verify mode: shown until the identity is confirmed through a personal link -->
 <section id="verifyGate" class="gate verify" aria-live="polite" hidden>
   <svg class="i gate-icon" aria-hidden="true"><use href="#i-link"/></svg>
-  <h2>請從 Discord 的專屬連結進來</h2>
+  <h2 data-i18n="verifyTitle">請從 Discord 的專屬連結進來</h2>
   <ol class="vsteps">
-    <li>在這個伺服器的任何文字頻道輸入 <code>/help</code></li>
-    <li>點機器人回你的「<b>點此開啟看板</b>」</li>
+    <li data-i18n-html="verifyStep1">在這個伺服器的任何文字頻道輸入 <code>/help</code></li>
+    <li data-i18n-html="verifyStep2">點機器人回你的「<b>點此開啟看板</b>」</li>
   </ol>
-  <p class="vsub">點一下就自動確認你的 Discord 身分、顯示你的暱稱，並記住這個瀏覽器，之後直接開這個網址就能進來。<br>
-    連結只有你看得到，12 小時有效，請勿轉貼。</p>
+  <p class="vsub" data-i18n-html="verifySub">點一下就自動確認你的 Discord 身分、顯示你的暱稱，並記住這個瀏覽器，之後直接開這個網址就能進來。<br>連結只有你看得到，12 小時有效，請勿轉貼。</p>
 </section>
 
 <!-- 連結無效時顯示 / shown when the link is invalid -->
 <div id="gate" class="gate" hidden>
   <svg class="i gate-icon" aria-hidden="true"><use href="#i-link"/></svg>
-  <h2>連結無效或已過期</h2>
-  <p>請回到 Discord，輸入 <code>/help</code> 取得你專屬的新連結。<br>連結 12 小時有效，且只能給本人使用。</p>
+  <h2 data-i18n="invalidTitle">連結無效或已過期</h2>
+  <p data-i18n-html="invalidBody">請回到 Discord，輸入 <code>/help</code> 取得你專屬的新連結。<br>連結 12 小時有效，且只能給本人使用。</p>
 </div>
 
 <div id="picker" class="picker" hidden>
-  <h2 class="panel-title">選擇伺服器</h2>
+  <h2 class="panel-title" data-i18n="pickServer">選擇伺服器</h2>
   <div id="pickerList"></div>
 </div>
 
 <div id="toast" class="toast" role="status" hidden></div>
 
+<script src="/static/i18n.js"></script>
 <script src="/static/vendor/Sortable.min.js"></script>
 <script src="/static/app.js"></script>
 </body>

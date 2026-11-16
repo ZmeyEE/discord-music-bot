@@ -4,7 +4,7 @@ A free Discord music bot that runs on your own PC, Bilibili first, best audio qu
 This page is for people who want to change it: new language, new colors, better audio, or reuse the UI somewhere else
 (中文版在 [DEVELOPING.zh-TW.md](DEVELOPING.zh-TW.md))
 
-Version: **1.0.1** · License: [Unlicense](../LICENSE) (public domain, do whatever you want) · Third-party list: [THIRD_PARTY.md](../THIRD_PARTY.md)
+Version: **1.1.0** · License: [Unlicense](../LICENSE) (public domain, do whatever you want) · Third-party list: [THIRD_PARTY.md](../THIRD_PARTY.md)
 
 ## 1. Map of the project
 
@@ -80,28 +80,29 @@ Everything visual is in `web/style.css`, the colors are tokens at the very top
 
 ## 5. Add a language
 
-Honest status for 1.0.1: **there is no i18n layer yet**, all texts are written directly in the code (Traditional Chinese)
-So today a new language means editing strings, and an i18n layer is the best first contribution
+Since 1.1.0 the web dashboard has languages (Traditional Chinese, Simplified Chinese, English, Japanese). Discord messages and slash commands don't yet
 
-Where the texts live (rough count of lines with visible text):
+**Add a language to the dashboard** (`web/i18n.js`):
 
-| Where | What | Lines |
-| --- | --- | --- |
-| `web/index.html` | labels, buttons, tooltips | ~44 |
-| `web/app.js` | toasts, status text, dialogs | ~94 |
-| `musicbot/commands.py` | slash command names, descriptions, replies | ~73 |
-| `musicbot/hub.py` `player.py` `dashboard.py` `app.py` `health.py` `relay.py` | announcements, errors, log lines | ~180 |
+1. Add a line to `LANGS`, for example `["ko", "한국어"]`, and the matching `<html lang>` to `HTML_LANG`
+2. Copy the `"zh-TW"` block inside `D` under the new name and translate every key
+3. A missing key falls back to Traditional Chinese, so you can translate part of it first
+4. Refresh and the menu at the top right has one more option
 
-Find them yourself with a CJK search, for example `rg "[一-鿿]" web musicbot`
+Usage: mark HTML with `data-i18n="key"` (text), `data-i18n-html` (when it holds `<b>` / `<code>`), `data-i18n-title` / `-aria` / `-ph` / `-alt`; in JS use `T("key", { name: "x" })`, `{name}` gets replaced
 
-Suggested plan if you want to do it properly:
+A language change is saved in the browser (`localStorage` key `mb_lang`) and the page reloads, so nothing in the old language is left on screen
 
-1. **Web**: add `web/i18n/<lang>.js` (a plain object `{ "key": "text" }`), a tiny `t(key)` in `app.js`, mark HTML with `data-i18n="key"`, pick the language from `navigator.language` (or a `?lang=` / saved choice)
-2. **Server replies**: move the strings in `commands.py` / `hub.py` / `player.py` into one `messages.py` keyed by id, with the language chosen by a `.env` setting (for example `BOT_LANG=en`)
-3. **Slash commands**: discord.py supports command localization (`app_commands.locale_str` + a `Translator`), use it so each user sees commands in their own Discord language
-4. Keep the Chinese as the default so nothing changes for current users, add a test that every key exists in every language file
+**Not done yet** (find the strings with `rg "[一-鿿]" musicbot`):
 
-If you only need one other language for yourself, the quick way is a find-and-replace on the table above, then check with the tests
+| Where | What |
+| --- | --- |
+| `musicbot/commands.py` | slash command names, descriptions, replies |
+| `musicbot/hub.py` `player.py` `dashboard.py` `health.py` `relay.py` | announcements, errors, and the notices shown on the dashboard |
+
+1. **Server replies**: move the strings into one `messages.py` keyed by id, with the language chosen by a `.env` setting (for example `BOT_LANG=en`)
+2. **Slash commands**: discord.py supports command localization (`app_commands.locale_str` + a `Translator`)
+3. Keep Traditional Chinese as the default and add a test that every key exists in every language
 
 ## 6. Improve the audio path (source → Discord)
 

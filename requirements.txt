@@ -1,13 +1,20 @@
-﻿discord.py[voice]>=2.4   # Discord API + voice support / Discord 介面與語音
+﻿discord.py>=2.4         # Discord API + voice support / Discord 介面與語音
+PyNaCl>=1.6.2            # 語音加密，1.5.x 有已知漏洞 / voice encryption, 1.5.x has known vulnerabilities
+davey>=0.1.0,<0.2        # 語音端對端加密 DAVE，上限原因見下面 / voice end-to-end encryption (DAVE), see below for the upper bound
 yt-dlp                   # resolves Bilibili / YouTube links to audio streams / 解析影音網址
 segno                    # Bilibili QR-code login (pure Python, no dependencies) / Bilibili 登入 QR 碼（純 Python、無相依套件）
+
+# 為什麼不寫 discord.py[voice]：它把 PyNaCl 鎖在 <1.6，會擋掉 1.6.2（修了 2 個已知漏洞）
+# 這裡直接列出 voice 需要的 PyNaCl 和 davey，用 1.6.2 跑過全部測試
+# Why not discord.py[voice]: it pins PyNaCl to <1.6, which blocks 1.6.2 (fixes 2 known vulnerabilities).
+# PyNaCl and davey, the two things voice needs, are listed directly instead. All tests pass on 1.6.2.
 
 # 重要：davey 0.2.x 與 discord.py 2.7.x 不相容
 # 0.2.0 改了端對端加密（DAVE）的介面，要求呼叫 prepare_transition，但 discord.py 2.7.1 還沒有；
 # 結果是機器人能進語音頻道、頭像有綠框，但 log 裡 dave_ready 永遠是 False、頻道內完全沒聲音
-# discord.py 自己只寫 davey>=0.1.0，所以必須在這裡把上限鎖定
+# discord.py 自己只寫 davey>=0.1.0，所以必須在這裡把上限鎖定（discord.py 2.7.1 仍是最新版，davey 最新是 0.2.0）
 # IMPORTANT: davey 0.2.x is not compatible with discord.py 2.7.x.
 # 0.2.0 changed the end-to-end-encryption (DAVE) interface and requires prepare_transition, which discord.py 2.7.1
 # does not call yet. Result: the bot joins voice and shows the green ring, but dave_ready stays False in the log
 # and the channel hears nothing. discord.py itself only asks for davey>=0.1.0, so the upper bound is pinned here.
-davey>=0.1.0,<0.2
+# (discord.py 2.7.1 is still the latest release, and the latest davey is 0.2.0.)

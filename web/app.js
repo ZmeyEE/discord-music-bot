@@ -99,6 +99,7 @@
       const h = new URL(url).hostname;
       if (/(^|\.)(bilibili\.com|b23\.tv)$/.test(h)) return { cls: "src-bili", label: "Bilibili" };
       if (/(^|\.)(youtube\.com|youtu\.be)$/.test(h)) return { cls: "src-yt", label: "YouTube" };
+      if (/(^|\.)spotify\.com$/.test(h)) return { cls: "src-sp", label: "Spotify" };
       return { cls: "", label: h.replace(/^www\./, "") };
     } catch { return null; }
   }
@@ -114,15 +115,16 @@
     if (u) {
       try {
         const h = new URL(u[0]).hostname;
-        if (/(^|\.)(bilibili\.com|b23\.tv)$/.test(h)) return { k: "bili", t: "辨識為：Bilibili 連結" };
-        if (/(^|\.)(youtube\.com|youtu\.be)$/.test(h)) return { k: "yt", t: "辨識為：YouTube 連結" };
-        return { k: "", t: `辨識為：網址（${h.replace(/^www\./, "")}）` };
-      } catch { return { k: "", t: "辨識為：網址" }; }
+        if (/(^|\.)(bilibili\.com|b23\.tv)$/.test(h)) return { k: "bili", t: T("detectBili") };
+        if (/(^|\.)(youtube\.com|youtu\.be)$/.test(h)) return { k: "yt", t: T("detectYt") };
+        if (/(^|\.)spotify\.com$/.test(h)) return { k: "sp", t: T("detectSpotify") };
+        return { k: "", t: T("detectUrlHost", { host: h.replace(/^www\./, "") }) };
+      } catch { return { k: "", t: T("detectUrl") }; }
     }
-    if (/(^|[^0-9A-Za-z])BV[0-9A-Za-z]{10}($|[^0-9A-Za-z])/.test(q)) return { k: "bili", t: "辨識為：Bilibili BV 號" };
-    if (/(^|[^0-9A-Za-z])av\d{4,}($|[^0-9A-Za-z])/i.test(q)) return { k: "bili", t: "辨識為：Bilibili av 號" };
-    if (/^(yt|youtube)\s*[:：]/i.test(q)) return { k: "yt", t: "辨識為：YouTube 關鍵字搜尋" };
-    return { k: "bili", t: "辨識為：Bilibili 關鍵字搜尋" };
+    if (/(^|[^0-9A-Za-z])BV[0-9A-Za-z]{10}($|[^0-9A-Za-z])/.test(q)) return { k: "bili", t: T("detectBV") };
+    if (/(^|[^0-9A-Za-z])av\d{4,}($|[^0-9A-Za-z])/i.test(q)) return { k: "bili", t: T("detectAv") };
+    if (/^(yt|youtube)\s*[:：]/i.test(q)) return { k: "yt", t: T("detectYtSearch") };
+    return { k: "bili", t: T("detectBiliSearch") };
   }
 
   /* ------------------------------------------- 沒指定伺服器：顯示選單 / No server in the URL: show a picker */
@@ -133,7 +135,7 @@
     fetch("/api/guilds").then((r) => r.json()).then((list) => {
       if (list.length === 1) { location.replace(`/g/${list[0].id}`); return; }   // 只有一個伺服器就直接進去 / only one server: go straight in
       const box = $("#pickerList");
-      if (!list.length) box.textContent = "機器人還沒加入任何伺服器。";
+      if (!list.length) box.textContent = T("noGuild");
       list.forEach((g) => {
         const a = el("a", "", g.name);
         a.href = `/g/${g.id}`;
@@ -184,7 +186,7 @@
   // 常用節點只查一次 / look the frequently used nodes up only once
   const queueEl = $("#queue"), nowDrop = $("#nowDrop"), trashCol = $("#trashCol");
   const queuePanel = document.querySelector(".col-queue");
-  const guildNameEl = $("#guildName"), countEl = $("#queueCount");
+  const guildNameEl = $("#guildName"), countEl = $("#queueCount"), queueMoreEl = $("#queueMore");
   const loopBtns = [...document.querySelectorAll("#loopBtns button")];
   const qualityBtns = [...document.querySelectorAll("#qualityBtns button")];
 
@@ -195,7 +197,7 @@
 
   /** 送一則訊息給伺服器（連線中才送；空分頁會擋下不允許的操作）/ Send a message to the server (only while connected; empty tabs block disallowed actions). */
   const send = (obj) => {
-    if (targetChannel && !OK_ON_EMPTY_TAB.has(obj.type)) { toast("這個頻道還沒有開始播放：先在下面貼上網址加一首歌，機器人就會進去"); return; }
+    if (targetChannel && !OK_ON_EMPTY_TAB.has(obj.type)) { toast(T("emptyChannelToast")); return; }
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
   };
 
@@ -300,7 +302,7 @@
    */
   function requesterNode(name, url) {
     const r = el("span", "req");
-    r.title = `點歌：${name}`;
+    r.title = T("requestedBy", { name });
     const initial = () => el("span", "req-av req-initial", [...name][0] || "?");
     let av;
     if (url) {
@@ -310,7 +312,7 @@
       av.addEventListener("error", () => av.replaceWith(initial()), { once: true });
       av.src = url;
     } else av = initial();
-    r.append(el("span", "req-label", "點歌"), av, el("span", "req-name", name));
+    r.append(el("span", "req-label", T("requester")), av, el("span", "req-name", name));
     return r;
   }
 
@@ -344,8 +346,8 @@
 
     const act = el("div", "actions");
     act.append(
-      actionButton("立即播放", "play", "", () => send({ type: "play_now", id: t.id })),
-      actionButton("刪除", "close", "x", () => { tearAway(c); send({ type: "remove", id: t.id }); }),
+      actionButton(T("playNow"), "play", "", () => send({ type: "play_now", id: t.id })),
+      actionButton(T("remove"), "close", "x", () => { tearAway(c); send({ type: "remove", id: t.id }); }),
     );
     c.appendChild(act);
     return c;
@@ -392,7 +394,7 @@
     if (btn.dataset.icon === name) return;
     btn.dataset.icon = name;
     btn.replaceChildren(icon(name));
-    btn.title = paused ? "繼續播放" : "暫停";
+    btn.title = paused ? T("resume") : T("pause");
     btn.setAttribute("aria-label", btn.title);
   }
 
@@ -402,7 +404,7 @@
     if (!c) {
       if (nowKey !== "idle") {
         const idle = el("div", "idle");
-        idle.append(icon("note"), el("span", "", "目前沒有在播放"));
+        idle.append(icon("note"), el("span", "", T("nothingPlaying")));
         nowDrop.replaceChildren(idle);
         nowKey = "idle"; nowRefs = null;
       }
@@ -468,22 +470,25 @@
 
     setText(guildNameEl, s.guild.name);
     const cur = v.current;
-    const title = (cur ? `播放中 · ${cur.title} · ` : "") + "音樂看板";
+    const title = (cur ? T("tabTitlePlaying", { title: cur.title }) : "") + T("title");
     if (document.title !== title) document.title = title;
     setStatus(
       v.emptyTab
-        ? `「${v.channel}」還沒有開始播放 — 在下面貼上網址，機器人就會進去`
+        ? T("emptyTabStatus", { channel: v.channel })
         : v.connected
-          ? `已連線 · ${v.channel}` + (cur && cur.bitrate ? ` · Opus ${cur.bitrate} kbps` : "")
-          : "機器人尚未進入語音頻道 — 請在 Discord 使用 /join 或 /play",
+          ? T("connectedTo", { channel: v.channel }) + (cur && cur.bitrate ? ` · Opus ${cur.bitrate} kbps` : "")
+          : T("notInVoice"),
       v.connected,
     );
     for (const b of loopBtns) b.setAttribute("aria-checked", String(b.dataset.loop === v.loop));
     for (const b of qualityBtns) b.setAttribute("aria-checked", String(Number(b.dataset.q) === s.quality.kbps));
 
     syncQueue(v.queue);
-    setText(countEl, String(v.queue.length));
-    queuePanel.classList.toggle("is-empty", v.queue.length === 0);
+    const total = v.queue_total ?? v.queue.length;   // 看板最多畫前 1000 張，總數另外給 / the board draws at most the first 1000 cards, the total comes separately
+    setText(countEl, String(total));
+    queueMoreEl.hidden = total <= v.queue.length;
+    if (!queueMoreEl.hidden) setText(queueMoreEl, T("queueMore", { shown: v.queue.length, more: total - v.queue.length }));
+    queuePanel.classList.toggle("is-empty", total === 0);
     syncNow(v);
     syncPerms(s);
     syncLimit(s);
@@ -511,8 +516,8 @@
     fillWho(meta, c);
     card.appendChild(meta);
 
-    if (c.loading) card.appendChild(el("span", "chip loading", "載入中…"));
-    else if (c.quality) card.appendChild(el("span", "chip", `來源 ${c.quality} → Opus ${c.bitrate} kbps`));
+    if (c.loading) card.appendChild(el("span", "chip loading", T("loading")));
+    else if (c.quality) card.appendChild(el("span", "chip", T("sourceChip", { quality: c.quality, bitrate: c.bitrate })));
 
     const seek = makeSeekBar(c);
     card.appendChild(seek);
@@ -523,12 +528,12 @@
     card.appendChild(times);
 
     const ctrl = el("div", "ctrl");
-    const pause = actionButton("暫停", "pause", "main", () => send({ type: "toggle_pause" }));
+    const pause = actionButton(T("pause"), "pause", "main", () => send({ type: "toggle_pause" }));
     pause.dataset.icon = "pause";
     ctrl.append(
-      actionButton("下一首", "next", "", () => send({ type: "skip" })),
+      actionButton(T("next"), "next", "", () => send({ type: "skip" })),
       pause,
-      actionButton("停止並離開語音頻道", "stop", "danger", () => send({ type: "stop" })),
+      actionButton(T("stopLeave"), "stop", "danger", () => send({ type: "stop" })),
     );
     card.appendChild(ctrl);
 
@@ -548,7 +553,7 @@
   function makeSeekBar(c) {
     const seek = el("div", "seek");
     seek.setAttribute("role", "slider");
-    seek.setAttribute("aria-label", "播放進度");
+    seek.setAttribute("aria-label", T("seekAria"));
     seek.tabIndex = 0;
     const track = el("div", "seek-track");
     track.appendChild(el("div", "seek-fill"));
@@ -779,7 +784,7 @@
      2. Press Ctrl+V anywhere on the page: a pasted URL / shared text is added directly
      3. Drag a link (or selected text) from the browser into the page */
   const input = $("#addInput"), detectEl = $("#detect");
-  const TIP = "Enter 加到最後 · Shift+Enter 下一首 · 在頁面任何地方 Ctrl+V 貼上也行";
+  const TIP = T("keyTip");
 
   /** 依輸入內容更新"辨識為…"提示 / Update the "Detected as ..." hint from the input's content. */
   function updateDetect() {
@@ -807,7 +812,7 @@
     query = query.trim();
     if (!query) return false;
     send({ type: "add", query, when, ...(targetChannel ? { channel: targetChannel } : {}) });
-    if (!quiet) toast(when === "end" ? "解析中，卡片稍後出現…" : "解析中，這首會插到最前面…");
+    if (!quiet) toast(when === "end" ? T("resolvingEnd") : T("resolvingNext"));
     return true;
   }
 
@@ -829,7 +834,7 @@
     const tgt = e.target;
     if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) return;
     const text = (e.clipboardData && e.clipboardData.getData("text")) || "";
-    if (text.trim() && addTrack(text, "end", true)) { e.preventDefault(); toast("已貼上，解析中…"); }
+    if (text.trim() && addTrack(text, "end", true)) { e.preventDefault(); toast(T("pasted")); }
   });
 
   // 3. 把連結／文字拖進頁面 / drag a link or text into the page
@@ -841,7 +846,7 @@
     const dt = e.dataTransfer;
     if (!dt) return;
     const text = dt.getData("text/uri-list") || dt.getData("text/plain");
-    if (text && text.trim()) { e.preventDefault(); addTrack(text.split("\n")[0], "end", true); toast("已加入拖進來的連結，解析中…"); }
+    if (text && text.trim()) { e.preventDefault(); addTrack(text.split("\n")[0], "end", true); toast(T("dropped")); }
   });
 
   /* ------------------------------------------------ 多播放器（分身）分頁 / Multi-player (clone) tabs ----
@@ -927,11 +932,11 @@
       b.type = "button";
       b.setAttribute("role", "tab");
       b.setAttribute("aria-selected", String(targetChannel === t.id));
-      b.title = `「${t.name}」還沒有開始播放：貼上網址加一首歌，機器人就會進去，而且不會影響其他頻道`;
-      b.append(el("span", "dot"), el("span", "label", t.name), el("small", "", "尚未播放"));
+      b.title = T("freshTabTip", { name: t.name });
+      b.append(el("span", "dot"), el("span", "label", t.name), el("small", "", T("notPlayingYet")));
       b.addEventListener("click", () => { targetChannel = t.id; playersSig = ""; refresh(); input.focus(); });
       const x = el("button", "tab-close");
-      x.type = "button"; x.title = "關閉這個分頁"; x.setAttribute("aria-label", `關閉「${t.name}」分頁`);
+      x.type = "button"; x.title = T("closeTab"); x.setAttribute("aria-label", T("closeTabNamed", { name: t.name }));
       x.appendChild(icon("close"));
       x.addEventListener("click", (e) => { e.stopPropagation(); closeTab(t.id); });
       wrap.append(b, x);
@@ -942,11 +947,11 @@
     if (canAdd) {
       // "＋ 加到頻道"按鈕與下拉選單 / the "+ add to channel" button and its dropdown
       const wrap = el("span", "chan-wrap");
-      const add = el("button", "player-chip add", "＋ 加到頻道");
+      const add = el("button", "player-chip add", T("addToChannel"));
       add.type = "button";
       add.setAttribute("aria-haspopup", "menu");
       add.setAttribute("aria-expanded", String(menuOpen));
-      add.title = "選一個還沒有播放器的語音頻道，會開成一個獨立的分頁（派一個閒置的機器人進去，不影響其他頻道）";
+      add.title = T("addToChannelTip");
       add.addEventListener("click", (e) => { e.stopPropagation(); menuOpen = !menuOpen; playersSig = ""; syncPlayers(state); });
       wrap.appendChild(add);
       if (menuOpen) {
@@ -956,7 +961,7 @@
           const it = el("button", "menu-item");
           it.type = "button";
           it.setAttribute("role", "menuitem");
-          it.append(el("span", "", c.name), el("small", "", c.members ? `${c.members} 人` : "沒人"));
+          it.append(el("span", "", c.name), el("small", "", c.members ? T("members", { n: c.members }) : T("nobody")));
           it.addEventListener("click", (e) => { e.stopPropagation(); openTab(c.id); });
           menu.appendChild(it);
         });
@@ -965,10 +970,10 @@
       nodes.push(wrap);
     }
     const info = el("span", "clones",
-      s.players.length ? `播放器 ${s.clones.total - s.clones.idle}／${s.clones.total} 使用中` : "還沒有在播放：先選一個語音頻道");
+      s.players.length ? T("playersUsed", { used: s.clones.total - s.clones.idle, total: s.clones.total }) : T("pickChannelFirst"));
     info.title = s.limit && s.limit.reached && s.limit.max < s.limit.cap
-      ? `偵測到卡頓，同時播放上限已降為 ${s.limit.max} 個頻道`
-      : s.clones.idle ? `還有 ${s.clones.idle} 個閒置，可接手新的頻道` : "全部使用中。要同時在更多頻道播放，需要再設定分身（見 README）";
+      ? T("stutterCap", { n: s.limit.max })
+      : s.clones.idle ? T("idleClones", { n: s.clones.idle }) : T("allBusy");
     nodes.push(info);
     playersBar.replaceChildren(...nodes);
   }
@@ -992,14 +997,14 @@
     const ro = !s.me.can_control;
     document.body.classList.toggle("readonly", ro);
     permBanner.hidden = !ro;
-    if (ro) setText(permBanner, s.me.reason || "唯讀");
+    if (ro) setText(permBanner, s.me.reason || T("readonly"));
     sortQueue.option("disabled", ro || !!targetChannel);
     sortNow.option("disabled", ro || !!targetChannel);
     input.placeholder = ro
-      ? "先加入語音頻道，才能加歌"
+      ? T("joinFirst")
       : targetChannel
-        ? `貼上網址，加到「${(pendingTabs.find((t) => t.id === targetChannel) || {}).name || "這個頻道"}」（只會進這個頻道）`
-        : "貼上 Bilibili／YouTube 網址、BV 號，或輸入關鍵字";
+        ? T("pasteTo", { name: (pendingTabs.find((t) => t.id === targetChannel) || {}).name || T("thisChannel") })
+        : T("addPh");
   }
 
   /* ----------------------------------------------- Bilibili 帳號 / Bilibili account ----
@@ -1031,8 +1036,8 @@
     biliState = s.bili;
     biliBtn.hidden = !s.bili.can_manage;
     if (!s.bili.can_manage) return;
-    setText($("#biliTitle"), s.bili.logged_in ? s.bili.name : "未登入 Bilibili");
-    setText($("#biliSub"), s.bili.logged_in ? `${s.bili.vip_label}　點此更換帳號` : "點此掃碼登入");
+    setText($("#biliTitle"), s.bili.logged_in ? s.bili.name : T("biliLoggedOut"));
+    setText($("#biliSub"), s.bili.logged_in ? T("biliSwap", { vip: s.bili.vip_label }) : T("biliClickScan"));
     avatar($("#biliAvatar"), s.bili.logged_in ? s.bili.face : "", 96);
     if (biliDlg.open) renderBiliDialog();
   }
@@ -1051,17 +1056,17 @@
     }
     bq.logout.hidden = !b.logged_in || scanning;
     bq.start.hidden = scanning;
-    setText(bq.start, b.logged_in ? "更換帳號（掃碼）" : "掃碼登入");
+    setText(bq.start, b.logged_in ? T("biliSwapBtn") : T("scanLogin"));
 
     const lines = [];
     if (b.logged_in && !b.vip) {
-      lines.push("<b>一般會員的音質上限與未登入相同</b>（約 192 kbps AAC）。Hi-Res 無損與杜比是<b>大會員</b>專屬。");
+      lines.push(T("biliNote1"));
     } else if (b.logged_in && b.vip) {
-      lines.push("<b>大會員</b>：機器人會優先使用 Hi-Res 無損（FLAC）音軌，搭配 Opus 320～510 kbps 最接近原音。");
+      lines.push(T("biliNote2"));
     } else {
-      lines.push("登入後的主要好處：降低搜尋被限流（HTTP 412）的機率、能播放需要登入才能看的影片。");
+      lines.push(T("biliNote3"));
     }
-    lines.push("掃碼是 Bilibili 官方的登入流程，機器人不會接觸你的密碼；登入憑證只存在<b>執行機器人的這台電腦</b>，重開機器人仍會記住。");
+    lines.push(T("biliNote4"));
     bq.note.innerHTML = lines.map((l) => `<p>${l}</p>`).join("");
     if (extra) bq.note.insertAdjacentHTML("afterbegin", `<p>${extra}</p>`);
   }
@@ -1077,7 +1082,7 @@
     const t0 = Date.now();
     qrTimer = setInterval(() => {
       const left = Math.max(0, ttl - Math.round((Date.now() - t0) / 1000));
-      if (left > 0 && !bq.status.classList.contains("ok") && bq.status.dataset.mode !== "scanned") setText(bq.status, `請用 Bilibili App 掃描（${left} 秒後過期）`);
+      if (left > 0 && !bq.status.classList.contains("ok") && bq.status.dataset.mode !== "scanned") setText(bq.status, T("qrScanLeft", { n: left }));
     }, 1000);
   }
 
@@ -1088,7 +1093,7 @@
   bq.start.addEventListener("click", () => {
     bq.box.hidden = false; bq.img.removeAttribute("src"); bq.img.classList.add("dim");
     bq.status.dataset.mode = "";
-    setQrStatus("正在向 Bilibili 取得 QR 碼…");
+    setQrStatus(T("qrFetching"));
     renderBiliDialog();
     send({ type: "bili_login_start" });
   });
@@ -1098,23 +1103,23 @@
   function onBiliMessage(msg) {
     if (msg.type === "bili_qr") {
       bq.img.src = msg.img; bq.img.classList.remove("dim");
-      setQrStatus("請用 Bilibili App 掃描"); startQrCountdown(msg.ttl);
+      setQrStatus(T("biliScan")); startQrCountdown(msg.ttl);
     } else if (msg.type === "bili_status") {
       bq.status.dataset.mode = msg.status;
-      if (msg.status === "scanned") setQrStatus("已掃描，請在手機上按「確認登入」", "ok");
-      else if (msg.status === "expired") { bq.img.classList.add("dim"); setQrStatus("QR 碼已過期，請重新產生", "bad"); clearInterval(qrTimer); bq.start.hidden = false; setText(bq.start, "重新產生 QR 碼"); }
-      else if (msg.status === "error") { bq.img.classList.add("dim"); setQrStatus(msg.text || "登入失敗", "bad"); clearInterval(qrTimer); bq.start.hidden = false; setText(bq.start, "再試一次"); }
-      else if (msg.status === "ok") { stopQr(); toast(`登入成功：${msg.account ? msg.account.name : ""}`); renderBiliDialog(); }
+      if (msg.status === "scanned") setQrStatus(T("qrScanned"), "ok");
+      else if (msg.status === "expired") { bq.img.classList.add("dim"); setQrStatus(T("qrExpired"), "bad"); clearInterval(qrTimer); bq.start.hidden = false; setText(bq.start, T("qrRegen")); }
+      else if (msg.status === "error") { bq.img.classList.add("dim"); setQrStatus(msg.text || T("loginFailed"), "bad"); clearInterval(qrTimer); bq.start.hidden = false; setText(bq.start, T("retry")); }
+      else if (msg.status === "ok") { stopQr(); toast(T("loginOk", { name: msg.account ? msg.account.name : "" })); renderBiliDialog(); }
     }
   }
 
   /* ------------------------------------------------------------ 連線 / Connection */
   // 開放模式下沒有 Discord 身分時，用一個自動產生的暱稱當"點歌：xxx"
   // In open mode without a Discord identity, an auto-generated nickname is used as "requested by: xxx".
-  let myName = "訪客";
+  let myName = T("guest");
   try {
     myName = localStorage.getItem("mb_name") || "";
-    if (!myName) { myName = `訪客${Math.floor(100 + Math.random() * 900)}`; localStorage.setItem("mb_name", myName); }
+    if (!myName) { myName = T("guestN", { n: Math.floor(100 + Math.random() * 900) }); localStorage.setItem("mb_name", myName); }
   } catch { /* 瀏覽器禁止儲存時就用預設 / storage blocked: use the default */ }
 
   let authFailed = false;   // 憑證被拒絕後不再重連 / once the token is rejected, stop reconnecting
@@ -1137,8 +1142,8 @@
       if (msg.type === "state") render(msg.data);
       else if (msg.type === "toast") toast(msg.text);
       else if (msg.type === "bili_qr" || msg.type === "bili_status") onBiliMessage(msg);
-      else if (msg.type === "verified") { saveDevice(msg.token); toast(`已確認身分：${msg.name}，這個瀏覽器會被記住`); }
-      else if (msg.type === "revoked") { saveDevice(null); toast("你的裝置已被撤銷，請重新用 /help 的連結進來"); }
+      else if (msg.type === "verified") { saveDevice(msg.token); toast(T("verified", { name: msg.name })); }
+      else if (msg.type === "revoked") { saveDevice(null); toast(T("revoked")); }
       else if (msg.type === "error") {
         if (msg.code === "auth") {          // 憑證無效：不要一直重連，直接告訴使用者怎麼拿新的 / invalid token: stop reconnecting and tell the user how to get a new one
           authFailed = true;
@@ -1147,7 +1152,7 @@
           playersBar.hidden = true; permBanner.hidden = true; $("#gate").hidden = false;
         } else if (msg.code === "offline") {   // 中繼站在線、但家裡的機器人沒連上：保持連線，回來後會自動恢復 / the relay is up but the home bot isn't connected: stay connected, it recovers automatically
           document.body.classList.add("offline");
-          setStatus("播放端離線", false);
+          setStatus(T("workerOffline"), false);
           permBanner.hidden = false;
           setText(permBanner, msg.text);
         } else { setStatus(msg.text, false); toast(msg.text); }
@@ -1155,7 +1160,7 @@
     };
     ws.onclose = () => {
       if (authFailed) return;
-      setStatus("連線中斷，重新連線中…", false);
+      setStatus(T("reconnecting"), false);
       setTimeout(connect, Math.min(1000 * 2 ** retry++, 8000));
     };
   }

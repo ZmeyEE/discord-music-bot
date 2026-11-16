@@ -5,6 +5,9 @@
 本地執行，完全 free 高音質 Discord MP3 bot<br>
 yt-dlp 取最高品質音軌 給 ffmpeg 轉成 Opus 再給 Discord；另附 trello 風格的網頁看板，看板同頻道的朋友也可以用哦(需要用到 VPS )
 
+![中控台 / Dashboard](docs/images/dashboard.png)
+<sub>中控台實際使用的畫面（個人資訊已模糊處理）/ the dashboard in real use (personal info blurred)</sub>
+
 ![中控台 demo / Dashboard demo](docs/images/dashboard-demo.png)
 <sub>用測試用的假資料截圖，可以自己跑 `tests/harness_hub.py` 重現 / screenshot with demo data, reproducible with `tests/harness_hub.py`</sub>
 
@@ -35,6 +38,9 @@ queue with drag-and-drop cards.
 ## 特色
 
 - **Bilibili 優先**：貼網址、BV 號、整段分享文字都能"自動辨識"；同時支援 YouTube 等 yt-dlp 能解析的網站
+- **Spotify 連結**：單曲、專輯、播放清單都能貼，會去 Bilibili（找不到換 YouTube）找對應的歌來播，不是 Spotify 本身的音源
+- **清單上限**：合集一次最多 5000 首，一個伺服器的待播清單最多 5000 首（`MAX_QUEUE` 可改）
+- **多語言看板**：右上角選單切換，預設繁體中文（繁中、簡中、English、日本語）
 - **音質**：auto 最高品質音軌；Opus 位元率預設 192、max 510（控制看板自由切換）
 - **網頁看板**：拖曳排序、切歌、刪除，能拖曳進度條，單曲／列表循環
 - **多人共用看板**：伺服器內使用者皆可控制所有頻道（可改成"連結＋人在語音頻道才能控制"的語音模式）
@@ -74,7 +80,10 @@ queue with drag-and-drop cards.
 | 含有網址的文字（包含 Bilibili App 分享出來的"標題＋網址"） | 直接使用該網址 |
 | `BV1xxxxxxxxx` 或 `av123456` | Bilibili 影片 |
 | `yt:關鍵字` | YouTube 搜尋 |
+| Spotify 連結（`open.spotify.com/track／album／playlist/…`、`spotify:track:…`） | 讀歌名和歌手，去 Bilibili／YouTube 找對應的歌 |
 | 其他文字 | Bilibili 關鍵字搜尋 |
+
+Spotify 的限制：連結要是公開的；播放清單最多讀到 100 首（Spotify 公開頁面只給這麼多）；對應的歌可能是翻唱或別的版本，Discord 會顯示"對應影片"讓你確認
 
 ## 網頁看板
 

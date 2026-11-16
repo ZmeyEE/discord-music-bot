@@ -9,9 +9,11 @@ Two steps on purpose / 刻意分成兩步:
 """
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
+import urllib.request
 import uuid
 from dataclasses import dataclass, field, replace
 
@@ -21,7 +23,7 @@ from .paths import COOKIE_FILE
 
 log = logging.getLogger("musicbot")
 
-MAX_PLAYLIST = 50          # 合集／播放清單一次最多加入幾首 / max tracks taken from one playlist
+MAX_PLAYLIST = 5000        # 合集／播放清單一次最多加入幾首 / max tracks taken from one playlist
 SEARCH_CACHE_TTL = 600  # 秒；相同關鍵字短時間內不要重複打站方 API / seconds; don't hit the site's API again for the same keywords
 
 # Bilibili 的 CDN 會檢查 Referer 與 User-Agent，沒帶會 403
@@ -60,6 +62,9 @@ class Track:
     duration: int | None = None
     uploader: str = ""
     requester_avatar: str = ""      # 點歌者的 Discord 頭像網址（沒有 Discord 身分的訪客為空）/ requester's Discord avatar URL (empty for guests without a Discord identity)
+    search: str = ""                # Spotify 的歌沒有音源，這裡放"歌名 歌手"，播放前才去 Bilibili／YouTube 找對應的 / Spotify has no audio, this holds "title artist" and the match is searched on Bilibili / YouTube right before playing
+    matched: str = ""               # 找到的對應影片標題 / title of the video that was matched
+    enriched: bool = False          # 補資訊試過了（成功或失敗都只試一次）/ enrichment was tried (once, success or not)
 
     def public(self) -> dict:
         """回傳可以安全送給網頁前端的欄位 / The fields that are safe to send to the web front-end."""
@@ -104,6 +109,8 @@ _URL_RE = re.compile(r"https?://[^\s<>\"'「」『』【】（）]+", re.I)
 _BV_RE = re.compile(r"(?<![0-9A-Za-z])(BV[0-9A-Za-z]{10})(?![0-9A-Za-z])")
 _AV_RE = re.compile(r"(?<![0-9A-Za-z])av(\d{4,})(?![0-9A-Za-z])", re.I)
 _PREFIX_RE = re.compile(r"^(yt|youtube|bili|bilibili)\s*[:：]\s*(.+)$", re.I | re.S)
+_SPOTIFY_RE = re.compile(r"^https?://open\.spotify\.com/(?:intl-[a-z-]+/)?(?:embed/)?(track|album|playlist)/([0-9A-Za-z]{22})", re.I)
+_SPOTIFY_URI_RE = re.compile(r"^spotify:(track|album|playlist):([0-9A-Za-z]{22})$", re.I)
 
 
 def normalize_query(query: str) -> str:
@@ -122,6 +129,9 @@ def normalize_query(query: str) -> str:
     - anything else -> Bilibili keyword search
     """
     q = query.strip()
+    m = _SPOTIFY_URI_RE.match(q)
+    if m:
+        return f"https://open.spotify.com/{m.group(1).lower()}/{m.group(2)}"
     m = _URL_RE.search(q)
     if m:
         return m.group(0).rstrip(".,;:!?。，、；：！？)]}>")
@@ -183,6 +193,9 @@ def resolve_tracks(query: str, requester: str) -> list[Track]:
     each returned Track gets a fresh id so the same song can be queued twice.
     """
     target = normalize_query(query)
+    spotify = _SPOTIFY_RE.match(target)
+    if spotify:
+        return resolve_spotify(spotify.group(1).lower(), spotify.group(2), requester)
     is_search = target.startswith(("bilisearch", "ytsearch"))
     if is_search:
         hit = _SEARCH_CACHE.get(target)
@@ -225,12 +238,131 @@ def _resolve_uncached(target: str, requester: str) -> list[Track]:
     return tracks
 
 
+# ============================================================
+# Spotify / Spotify links
+# ============================================================
+# Spotify 的音訊有 DRM，沒辦法直接播
+# 這裡只讀公開嵌入頁（不用金鑰、不用登入）拿歌名和歌手，播放前再去 Bilibili／YouTube 找對應的歌
+# Spotify audio is DRM protected, so it can't be played directly.
+# We only read the public embed page (no key, no login) for title and artists, then search the match on Bilibili / YouTube right before playing.
+_SPOTIFY_UA = BILI_HEADERS["User-Agent"]
+_NEXT_DATA_RE = re.compile(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', re.S)
+_BAD_WORDS = re.compile(r"伴奏|纯音乐|純音樂|instrumental|karaoke|翻唱|cover|remix|reverb|nightcore|8d|sped up|slowed", re.I)
+
+
+def _spotify_entity(kind: str, sid: str) -> dict:
+    """抓嵌入頁並取出那段 JSON / Fetch the embed page and pull out its JSON."""
+    req = urllib.request.Request(
+        f"https://open.spotify.com/embed/{kind}/{sid}", headers={"User-Agent": _SPOTIFY_UA, "Accept-Language": "en"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:   # nosec B310 - 固定的 https 網址，kind／sid 已用正規表示式限制成英數字 / a fixed https URL, kind and sid are limited to alphanumerics by the regex
+            html = resp.read().decode("utf-8", "replace")
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(f"讀不到這個 Spotify 連結（要是公開的）：{str(exc)[:80]}") from exc
+    m = _NEXT_DATA_RE.search(html)
+    if not m:
+        raise RuntimeError("Spotify 頁面格式變了或連結不是公開的，讀不到歌曲資訊")
+    try:
+        return json.loads(m.group(1))["props"]["pageProps"]["state"]["data"]["entity"]
+    except (KeyError, ValueError) as exc:
+        raise RuntimeError("Spotify 頁面格式變了，讀不到歌曲資訊") from exc
+
+
+def _spotify_cover(ent: dict) -> str:
+    """封面：挑夠用的最小一張 / Cover art: the smallest one that is big enough."""
+    cands = [i for i in (ent.get("visualIdentity") or {}).get("image") or [] if isinstance(i, dict) and i.get("url")]
+    if not cands:
+        return ""
+    big = [i for i in cands if (i.get("maxWidth") or 0) >= 300]
+    best = min(big, key=lambda i: i["maxWidth"]) if big else max(cands, key=lambda i: i.get("maxWidth") or 0)
+    return to_https(best["url"])
+
+
+def _spotify_track(title: str, artists: str, ms: int | None, sid: str, cover: str, requester: str) -> Track:
+    """一首 Spotify 歌 -> Track（url 是 Spotify 連結，search 是之後要去找對應影片的關鍵字）
+    One Spotify song -> a Track (``url`` is the Spotify link, ``search`` is what we look up later)."""
+    return Track(
+        url=f"https://open.spotify.com/track/{sid}",
+        title=f"{title} - {artists}" if artists else title,
+        requester=requester,
+        thumbnail=cover,
+        duration=round(ms / 1000) if ms else None,
+        uploader=artists,
+        search=f"{title} {artists.split(',')[0].strip()}".strip(),
+    )
+
+
+def resolve_spotify(kind: str, sid: str, requester: str) -> list[Track]:
+    """Spotify 單曲／專輯／播放清單 -> 曲目清單
+
+    Spotify track / album / playlist -> a list of Tracks. The public embed page lists at most 100 songs of
+    a playlist, so a bigger one comes back cut at 100 (checked on a 150-song playlist).
+    """
+    ent = _spotify_entity(kind, sid)
+    cover = _spotify_cover(ent) if kind != "playlist" else ""   # 播放清單的封面不是每首的，留空，播放時用對應影片的縮圖 / a playlist cover isn't each song's: leave empty, the matched video's thumbnail is used at play time
+    if kind == "track":
+        artists = ", ".join(a.get("name", "") for a in ent.get("artists") or [] if a.get("name"))
+        return [_spotify_track(ent.get("name") or ent.get("title") or "", artists, ent.get("duration"), sid, cover, requester)]
+    tracks = []
+    for item in ent.get("trackList") or []:
+        m = re.match(r"spotify:track:([0-9A-Za-z]{22})$", item.get("uri") or "")
+        if m and item.get("title") and item.get("isPlayable", True):
+            tracks.append(_spotify_track(item["title"], item.get("subtitle") or "", item.get("duration"), m.group(1), cover, requester))
+    if not tracks:
+        raise RuntimeError("這個 Spotify 清單讀不到任何歌（要是公開的，且不是 Spotify 自己做的個人化清單）")
+    return tracks[:MAX_PLAYLIST]
+
+
+def pick_match(cands: list[dict], want: float | None, title: str = "") -> dict | None:
+    """從搜尋結果挑最像的：長度差在幾秒內、不是伴奏／翻唱／混音（除非原曲名就有），都沒有就取第一個
+
+    Pick the best search hit: duration within a few seconds, not an instrumental / cover / remix (unless the
+    Spotify title says so itself); falls back to the first hit.
+    """
+    cands = [c for c in cands if c and (c.get("webpage_url") or c.get("url"))]
+    if not cands:
+        return None
+    clean = [c for c in cands if not _BAD_WORDS.search(c.get("title") or "") or _BAD_WORDS.search(title)]
+    if want:
+        tol = max(6.0, want * 0.05)
+        close = [c for c in clean if c.get("duration") and abs(c["duration"] - want) <= tol]
+        if close:
+            return close[0]
+    return (clean or cands)[0]
+
+
+def extract_stream_for(t: Track) -> Stream:
+    """取得一首歌的串流；Spotify 的歌先去 Bilibili 找對應的（找不到再試 YouTube）
+
+    Get a track's stream. A Spotify track is first matched on Bilibili (YouTube as a fallback).
+    """
+    if not t.search:
+        return extract_stream(t.url)
+    last: Exception | None = None
+    for engine in ("bilisearch5", "ytsearch5"):
+        try:
+            with yt_dlp.YoutubeDL(_base_opts() | {"extract_flat": "in_playlist", "noplaylist": False}) as ydl:
+                info = ydl.extract_info(f"{engine}:{t.search}", download=False)
+            hit = pick_match(list((info or {}).get("entries") or []), t.duration, t.title)
+        except Exception as exc:  # noqa: BLE001 - 這個站搜不到或被限流，換下一個 / this site failed or rate-limited us: try the next
+            last, hit = exc, None
+        if hit:
+            stream = extract_stream(hit.get("webpage_url") or hit.get("url"))
+            t.matched = hit.get("title") or stream.title   # Bilibili 的搜尋結果常常沒有標題，用串流的 / Bilibili search hits often lack a title, use the stream's
+            return stream
+    raise RuntimeError(f"找不到對應的歌（{t.search}）" + (f"：{str(last)[:80]}" if last else ""))
+
+
 def enrich_track(t: Track) -> None:
     """補齊標題／縮圖／長度（搜尋與合集的 flat 結果通常沒有）
 
     Fill in title / thumbnail / duration (flat search and playlist results usually lack them).
     Failure is logged and tolerated: the track simply keeps what it has.
     """
+    t.enriched = True
+    if t.search:   # Spotify 的歌：資訊已經齊了，播放時才有對應影片 / a Spotify track already has its info; the matched video only exists at play time
+        return
     try:
         with yt_dlp.YoutubeDL(_base_opts() | {"noplaylist": True}) as ydl:
             info = ydl.extract_info(t.url, download=False)
