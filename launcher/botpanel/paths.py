@@ -39,12 +39,26 @@ def find_project() -> Path | None:
                 pass
     if getattr(sys, "frozen", False):
         cands += [str(app_dir()), str(app_dir().parent)]
+        cands += sibling_projects(app_dir().parent)
     else:
         cands.append(str(app_dir().parent))
     for c in cands:
         if c and (Path(c) / "bot.py").exists():
             return Path(c)
     return None
+
+
+def sibling_projects(parent: Path) -> list[str]:
+    """exe 放在專案旁邊（同一層）時，在隔壁找：有 bot.py 又有 musicbot/ 資料夾的才算，剛好只有一個才用
+
+    When the exe sits next to the project (same parent folder): look at the siblings. Only a folder with bot.py and a musicbot/
+    folder counts, and it is used only when there is exactly one such folder.
+    """
+    try:
+        found = [str(p) for p in parent.iterdir() if p.is_dir() and (p / "bot.py").exists() and (p / "musicbot").is_dir()]
+    except OSError:
+        return []
+    return found if len(found) == 1 else []
 
 
 def remember_project(project: Path) -> None:

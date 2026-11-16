@@ -52,6 +52,13 @@ check("L3 環境變數沒用時，改用記住的位置", found == proj, found)
 check("L4 看板網址由 RELAY_URL 推出（wss -> https）", paths.dashboard_url(proj) == "https://example.com/relay", paths.dashboard_url(proj))
 (proj / ".env").write_text("OTHER=1\n", encoding="utf-8")
 check("L5 沒有 RELAY_URL 就用本機網址", paths.dashboard_url(proj) == "http://127.0.0.1:8765")
+side = tmp / "side"
+(side / "panel").mkdir(parents=True)
+(side / "bot1").mkdir(); (side / "bot1" / "bot.py").write_text("", encoding="utf-8"); (side / "bot1" / "musicbot").mkdir()
+(side / "notbot").mkdir(); (side / "notbot" / "bot.py").write_text("", encoding="utf-8")   # 有 bot.py 但沒有 musicbot/ / bot.py but no musicbot/
+check("L6 exe 放在專案隔壁：認得隔壁那個有 bot.py 和 musicbot/ 的資料夾", paths.sibling_projects(side) == [str(side / "bot1")], paths.sibling_projects(side))
+(side / "bot2").mkdir(); (side / "bot2" / "bot.py").write_text("", encoding="utf-8"); (side / "bot2" / "musicbot").mkdir()
+check("L7 隔壁有兩個符合的就不猜（回傳空）", paths.sibling_projects(side) == [])
 
 # ============ 外部程序 ============
 out = f"100|{proj}\\.venv\\Scripts\\python.exe\n200|C:\\other\\.venv\\Scripts\\python.exe\nabc|{proj}\\.venv\\x\n300|{str(proj).upper()}\\.VENV\\Scripts\\python.exe\n"
