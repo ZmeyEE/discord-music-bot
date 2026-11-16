@@ -15,7 +15,7 @@ import webbrowser
 from pathlib import Path
 from tkinter import ttk
 
-from . import theme
+from . import __version__, theme
 from .actions import ActionsMixin
 from .logview import LogMixin
 from .paths import APP_TITLE, dashboard_url
@@ -126,7 +126,8 @@ class App(ActionsMixin, LogMixin):
 
         # 標題列：logo、名稱、狀態 / header: logo, name, status
         draw_logo(cv, MARGIN + 22, 40, 18, "ui")
-        cv.create_text(MARGIN + 54, 30, text=APP_TITLE, anchor="w", font=self.fonts.title, fill=theme.INK, tags="ui")
+        tid = cv.create_text(MARGIN + 54, 30, text=APP_TITLE, anchor="w", font=self.fonts.title, fill=theme.INK, tags="ui")
+        cv.create_text(cv.bbox(tid)[2] + 8, 34, text=f"v{__version__}", anchor="w", font=self.fonts.small, fill=theme.INK_3, tags="ui")
         text, color = LOOKS[self.kind]
         draw_status_dot(cv, MARGIN + 63, 58, color, top_color, "ui")
         sid = cv.create_text(MARGIN + 80, 58, text=text, anchor="w", font=self.fonts.button, fill=theme.INK_2, tags="ui")

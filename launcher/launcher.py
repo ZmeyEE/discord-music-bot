@@ -27,8 +27,11 @@ as the web dashboard), widgets.py (UI parts), window.py (the window).
 
 Build the exe / 打包成 exe:
   pip install pyinstaller
-  pyinstaller --onefile --windowed --icon launcher/MusicBotLauncher.ico --name MusicBotLauncher launcher/launcher.py
-圖示是 launcher/MusicBotLauncher.ico，想換就換掉這個檔案 / the icon is launcher/MusicBotLauncher.ico, replace that file to change it
+  python launcher/build.py
+會輸出 dist/MusicBotLauncher-<版本>.exe，檔名帶版本，版本也寫進 exe 的檔案版本資訊；版本號在 launcher/botpanel/__init__.py
+圖示是 launcher/MusicBotLauncher.ico，想換就換掉這個檔案
+This writes dist/MusicBotLauncher-<version>.exe: the file name carries the version, which is also written into the exe's file
+version info; the version lives in launcher/botpanel/__init__.py. The icon is launcher/MusicBotLauncher.ico, replace that file to change it.
 """
 from __future__ import annotations
 

@@ -40,6 +40,7 @@ web/                   dashboard front-end, vanilla HTML / CSS / JS, no build st
 tests/                 regression tests (fake Discord voice layer)
 launcher/              tiny desktop start/stop window (tkinter, optional)
   botpanel/            paths.py procs.py theme.py widgets.py window.py actions.py logview.py (colors in theme.py match the dashboard)
+  build.py             builds dist/MusicBotLauncher-<version>.exe (python launcher/build.py), version in botpanel/__init__.py
 deploy/                systemd service for the relay
 ```
 

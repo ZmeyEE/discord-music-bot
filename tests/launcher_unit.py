@@ -43,6 +43,7 @@ os.environ["MUSICBOT_DIR"] = str(proj)
 check("L1 MUSICBOT_DIR 指到含 bot.py 的資料夾就用它", paths.find_project() == proj, paths.find_project())
 os.environ["MUSICBOT_DIR"] = str(tmp)   # 沒有 bot.py
 os.environ["APPDATA"] = str(tmp / "appdata")
+os.environ["LOCALAPPDATA"] = str(tmp / "localappdata")   # 測試不能動到真的 instance.json / the tests must not touch the real instance.json
 paths.remember_project(proj)
 cfg = json.loads((tmp / "appdata" / "MusicBotLauncher" / "launcher.json").read_text(encoding="utf-8"))
 check("L2 記住的專案位置存進 %APPDATA%", cfg["project"] == str(proj), cfg)
@@ -107,8 +108,27 @@ procs.release_instance()                  # 舊的控制面板結束了 / the ol
 fourth = subprocess.run(probe, capture_output=True, text=True, timeout=30).stdout.strip()
 loser.kill()
 check("D6 搶輸的程序還活著，也不會害別人搶不到（舊版的漏洞：「已經開著」的提示視窗自己卡住了互斥鎖）", loser_said == "False" and fourth == "True", (loser_said, fourth))
+procs.single_instance()   # 搶到鎖並記下自己的程序代號 / take the lock, which records our process id
+OTHER = ("import sys; sys.path.insert(0, sys.argv[1]); from botpanel import procs; print(*procs.other_panels())")
+# 中間隔一層 cmd，這樣我們不是它的父程序（other_panels 會略過自己的父程序）/ one cmd in between so we are not its parent (other_panels skips the caller's parent)
+seen = subprocess.run(["cmd", "/c", sys.executable, "-X", "utf8", "-c", OTHER, os.path.join(ROOT, "launcher")], capture_output=True, text=True, timeout=60).stdout.split()
+check("D7 另一次啟動靠記錄的程序代號找得到我（不管 exe 叫什麼名字）", str(os.getpid()) in seen, seen)
+procs.release_instance()
 check("D4 找不到的視窗標題回傳 False", procs.focus_existing("沒有這個視窗 launcher-test-xyz") is False)
 check("D5 other_panels 不會把自己算進去", os.getpid() not in procs.other_panels())
+
+# ============ 版本與打包 ============
+import re
+import importlib.util
+import botpanel
+spec = importlib.util.spec_from_file_location("launcher_build", os.path.join(ROOT, "launcher", "build.py"))
+build = importlib.util.module_from_spec(spec); spec.loader.exec_module(build)
+check("V1 版本號是 x.y.z", re.fullmatch(r"\d+\.\d+\.\d+", botpanel.__version__) is not None, botpanel.__version__)
+check("V2 Windows 版本四個數字（1.1.0 -> 1,1,0,0）", build.numbers("1.1.0") == (1, 1, 0, 0) and build.numbers("2.10") == (2, 10, 0, 0), build.numbers("1.1.0"))
+vi = build.version_info("1.1.0")
+check("V3 版本資訊檔含檔案版本、產品版本和帶版本的原始檔名", "'FileVersion', '" + ".".join(["1", "1", "0", "0"]) + "'" in vi and "'ProductVersion', '1.1.0'" in vi and "MusicBotLauncher-1.1.0.exe" in vi)
+musicbot_ver = re.search(r'__version__ = "([^"]+)"', open(os.path.join(ROOT, "musicbot", "__init__.py"), encoding="utf-8").read()).group(1)
+check("V4 控制面板版本和 musicbot 版本一致（改版時要一起改）", botpanel.__version__ == musicbot_ver, (botpanel.__version__, musicbot_ver))
 
 # ============ 配色 ============
 check("T1 lerp 兩端", theme.lerp("#000000", "#ffffff", 0) == "#000000" and theme.lerp("#000000", "#ffffff", 1) == "#ffffff" and theme.lerp("#000000", "#ffffff", 0.5) == "#808080")

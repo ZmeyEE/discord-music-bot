@@ -6,11 +6,13 @@ Process control: the single-instance guard, finding bots started elsewhere, kill
 from __future__ import annotations
 
 import ctypes
+import json
 import os
 import queue
 import subprocess
 import sys
 import threading
+import time
 from ctypes import wintypes
 from pathlib import Path
 
@@ -47,6 +49,7 @@ def single_instance() -> bool:
         _k32.CloseHandle(h)
         return False
     _instance_handle = h
+    record_instance()
     return True
 
 
@@ -78,13 +81,46 @@ def other_panels() -> list[int]:
     when there is no window left to bring forward.
     """
     me = {os.getpid(), os.getppid()}
-    if getattr(sys, "frozen", False):
-        cond = "$_.ExecutablePath -eq '" + sys.executable.replace("'", "''") + "'"
+    if getattr(sys, "frozen", False):   # 檔名叫 MusicBotLauncher*.exe 的，或和自己同一個檔案的 / named MusicBotLauncher*.exe, or the very same file as ours
+        cond = "$_.Name -like 'MusicBotLauncher*' -or $_.ExecutablePath -eq '" + sys.executable.replace("'", "''") + "'"
     else:
         cond = "$_.Name -eq 'python.exe' -and $_.CommandLine -like '*launcher.py*'"
+    recorded = _recorded_pids()
+    if recorded:   # 舊的實例搶到鎖時記下的程序代號：不管 exe 改過什麼名字都認得；建立時間要早於記錄時間，免得認錯重複使用的代號
+        pids, stamp = recorded
+        when = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(stamp + 2))
+        cond += f" -or ($_.ProcessId -in @({','.join(map(str, pids))}) -and $_.CreationDate -le [datetime]'{when}')"
     out = run_hidden(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
                       "Get-CimInstance Win32_Process | Where-Object { " + cond + " } | ForEach-Object { $_.ProcessId }"])
     return [int(x) for x in out.split() if x.isdigit() and int(x) not in me]
+
+
+def state_file() -> Path:
+    """記錄"誰搶到鎖"的檔案 / The file that records who holds the lock."""
+    return Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "MusicBotLauncher" / "instance.json"
+
+
+def record_instance() -> None:
+    """搶到鎖之後記下自己和 exe 啟動器的程序代號，之後重複開啟時才找得到我（不靠檔名）
+
+    After taking the lock, record our own and our bootloader's process ids, so a later second launch can find us (not by file name).
+    """
+    try:
+        f = state_file()
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps({"pids": [os.getpid(), os.getppid()]}), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _recorded_pids() -> tuple[list[int], float] | None:
+    """讀出記錄的程序代號和記錄時間；沒有或壞了回傳 None / The recorded process ids and when they were written, or None."""
+    try:
+        f = state_file()
+        pids = [int(p) for p in json.loads(f.read_text(encoding="utf-8")).get("pids", [])]
+        return (pids, f.stat().st_mtime) if pids else None
+    except (OSError, ValueError, TypeError):
+        return None
 
 
 def run_hidden(args: list[str], timeout: int = 15) -> str:
