@@ -33,7 +33,10 @@ class Helpers:
 
         Reply to an interaction: use a followup if it was already answered, otherwise the first response.
         ``ephemeral=True`` makes the reply visible only to the user who ran the command.
+        params.PUBLIC_REPLIES 是 0（預設）時，所有回覆都只有本人看得到，不打擾頻道裡的其他人
+        With params.PUBLIC_REPLIES at 0 (the default) every reply is visible to the caller only, so nobody else is disturbed.
         """
+        ephemeral = ephemeral or not params.PUBLIC_REPLIES
         if interaction.response.is_done():
             await interaction.followup.send(content=text, embed=embed, ephemeral=ephemeral)
         else:
@@ -82,7 +85,7 @@ class Helpers:
         w, g, _ = self.hub.pick_for_user(interaction.guild.id, member.id, create=True)
         if w is None:
             return await self.say(interaction, self.hub.all_busy_message(interaction.guild.id), ephemeral=True)
-        await interaction.response.defer()   # 解析網址可能要幾秒，先告訴 Discord"處理中"/ resolving can take seconds; tell Discord we're working on it
+        await interaction.response.defer(ephemeral=not params.PUBLIC_REPLIES)   # 解析網址可能要幾秒，先告訴 Discord"處理中"/ resolving can take seconds; tell Discord we're working on it
         w.state(g.id).text_channel_id = interaction.channel_id
         tracks, info = await w.enqueue(g, query, member.display_name, g.get_channel(vch.id), when,
                                        member.display_avatar.with_size(64).url)

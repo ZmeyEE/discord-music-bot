@@ -46,7 +46,7 @@ class PlaybackMixin:
                 except Exception as exc:  # noqa: BLE001 - 解析失敗就跳下一首 / resolving failed: move on to the next track
                     log.warning("解析失敗 %s: %s", track.url, exc)
                     st.current = None
-                    await self._say(st, f"無法播放「{track.title or track.url}」：{str(exc)[:200]}")
+                    await self._say(st, f"無法播放「{track.title or track.url}」：{str(exc)[:200]}", problem=True)
                     self.notify(guild.id)
                     continue
                 vc = guild.voice_client

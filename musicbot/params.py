@@ -5,6 +5,9 @@
 Every tunable parameter lives in this one file.
 Change it here and nothing else needs to be touched: save and restart the bot.
 Values marked ENV can also be set in .env (.env wins).
+標 ENV 的值在 .env 讀進來之後由 apply_env() 套用（config.load_env() 會呼叫），所以一定要用 ``params.名稱`` 讀，才拿得到 .env 的值
+ENV values are applied by apply_env() once .env has been read (config.load_env() calls it), which is one more reason to
+always read ``params.NAME``: a copied value would miss what .env says.
 
 其他檔案一律用 ``params.名稱`` 讀取，不要自己再寫一份數字
 Other modules always read ``params.NAME``; never copy a number into another file.
@@ -32,8 +35,9 @@ DEFAULT_BITRATE_KBPS = 192                    # 沒有任何設定時的預設�
 # 2. 清單、搜尋與縮圖 / Queue, search and thumbnails
 # =====================================================================
 MAX_PLAYLIST = 5000        # 合集／播放清單一次最多加入幾首 / max tracks taken from one playlist
-MAX_QUEUE = _env_int("MAX_QUEUE", 5000)   # ENV  一個伺服器的待播清單最多幾首 / max songs in one server's queue
-QUEUE_VIEW = 1000        # 看板一次最多畫幾張待播卡片，5000 首全送一次要 1.7MB，中繼站單則訊息上限 4MB / cards the dashboard draws at once: all 5000 songs are 1.7 MB per update and the relay caps a message at 4 MB
+MAX_QUEUE = 5000           # ENV  一個伺服器的待播清單最多幾首 / max songs in one server's queue
+QUEUE_PAGE = 100         # 看板一開始畫幾張待播卡片，往下捲每次再多載入這麼多 / queued cards the dashboard draws at first, and how many more each scroll loads
+QUEUE_VIEW = 1000        # 一個瀏覽器最多能載入幾張（捲到底的上限）；清單沒變時不會重送，所以這個數字只影響捲很遠的人 / the most cards one browser may load by scrolling; an unchanged list is never re-sent, so this only matters to people who scroll far
 SEARCH_CACHE_TTL = 600  # 秒；相同關鍵字短時間內不要重複打站方 API / seconds; don't hit the site's API again for the same keywords
 ENRICH_FIRST = 50        # 加歌時先補幾首的縮圖與標題 / how many songs get their thumbnail and title filled right when added
 ENRICH_AHEAD = 10        # 開始播一首時，往後再補幾首 / when a song starts, how many following songs are filled
@@ -51,10 +55,8 @@ MATCH_TOLERANCE_RATIO = 0.05    # 或差在原曲長度的這個比例內（兩�
 # =====================================================================
 # 閒置自動離開（秒），分身離開語音頻道後才能被其他頻道接手；設成 0 代表不自動離開
 # Idle auto-leave (seconds). A clone can only be taken over by another channel after it leaves; 0 = never leave.
-MAX_QUEUE = _env_int("MAX_QUEUE", 5000)                      # 一個伺服器的待播清單最多幾首 / max songs in one server's queue
-QUEUE_VIEW = 1000   # 看板一次最多畫幾張待播卡片，5000 首全送一次要 1.7MB，中繼站單則訊息上限 4MB / cards the dashboard draws at once: all 5000 songs are 1.7 MB per update and the relay caps a message at 4 MB
-EMPTY_LEAVE_SECONDS = _env_int("EMPTY_LEAVE_SECONDS", 120)   # 頻道內只剩機器人 / only bots left in the channel
-IDLE_LEAVE_SECONDS = _env_int("IDLE_LEAVE_SECONDS", 300)     # 沒有在播也沒有待播 / nothing playing and nothing queued
+EMPTY_LEAVE_SECONDS = 120   # ENV # 頻道內只剩機器人 / only bots left in the channel
+IDLE_LEAVE_SECONDS = 300    # ENV # 沒有在播也沒有待播 / nothing playing and nothing queued
 
 # Discord 閘道斷線後，語音被踢掉（4014）的歌，這段秒數內會自動回頻道接著播，超過就當作是人踢的
 # If Discord's gateway dropped and then kicked us from voice (4014) within this many seconds, rejoin and resume; otherwise a human kicked us.
@@ -127,3 +129,47 @@ MAX_HANDSHAKES_PER_IP = 3    # 同一個來源 IP 同時最多幾個"還沒完�
 AUTH_FAIL_LIMIT = 5          # 同一個來源 IP 在視窗內握手失敗幾次就封鎖 / failed handshakes within the window before the IP is locked out
 AUTH_FAIL_WINDOW = 600.0     # 計算失敗次數的時間視窗（秒）/ window (s) over which failures are counted
 AUTH_LOCKOUT = 600.0         # 封鎖多久（秒）/ lock-out duration (s)
+
+# =====================================================================
+# 9. Discord 訊息 / Discord messages
+# =====================================================================
+# 預設不打擾頻道裡的其他人：指令的回覆只有下指令的人看得到，機器人只在出問題時才在頻道發訊息
+# By default other people in the channel are not disturbed: a command's reply is visible only to whoever ran it, and the
+# bot posts in a channel only when something went wrong.
+PUBLIC_REPLIES = 0             # ENV  0 = 指令回覆只有本人看得到；1 = 整個頻道都看得到（1.1.0 以前的行為）/ 0 = replies are visible to the caller only; 1 = to the whole channel (the behaviour up to 1.1.0)
+NOTICE_LEVELS = ("all", "problems", "off")
+CHANNEL_NOTICES = "problems"   # ENV  機器人主動在頻道發的訊息 / what the bot posts in a channel by itself:
+#   all      全部，包含每首歌的"正在播放"、閒置離開、斷線後回來 / everything: "now playing" for every song, idle leave, back after an outage
+#   problems 只有出問題時：無法播放、加密沒就緒聽不到聲音、卡頓所以停掉某個頻道 / only problems: can't play, encryption not ready (silent), a channel stopped because of stutter
+#   off      完全不發 / nothing at all
+
+
+# =====================================================================
+# .env 套用 / Applying .env
+# =====================================================================
+ENV_INTS = ("MAX_QUEUE", "EMPTY_LEAVE_SECONDS", "IDLE_LEAVE_SECONDS", "PUBLIC_REPLIES")   # 可以用環境變數覆寫的整數 / integers that an environment variable may override
+
+
+def apply_env() -> None:
+    """把標 ENV 的參數換成環境變數的值（沒設或格式不對就維持原值）；.env 讀進來之後要再呼叫一次
+
+    Replace the ENV-marked values with what the environment says (missing or malformed = keep the current value).
+    Call it again after .env has been read.
+    """
+    g = globals()
+    for name in ENV_INTS:
+        g[name] = _env_int(name, g[name])
+    notices = os.environ.get("CHANNEL_NOTICES", "").strip().lower()
+    if notices in NOTICE_LEVELS:
+        g["CHANNEL_NOTICES"] = notices
+
+
+def notices_allow(problem: bool) -> bool:
+    """這則頻道訊息現在可以發嗎；problem=True 表示它是在回報問題
+
+    May this channel message be posted now? ``problem=True`` means it reports something that went wrong.
+    """
+    return CHANNEL_NOTICES == "all" or (CHANNEL_NOTICES == "problems" and problem)
+
+
+apply_env()

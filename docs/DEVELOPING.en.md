@@ -4,7 +4,7 @@ A free Discord music bot that runs on your own PC, Bilibili first, best audio qu
 This page is for people who want to change it: new language, new colors, better audio, or reuse the UI somewhere else
 (中文版在 [DEVELOPING.zh-TW.md](DEVELOPING.zh-TW.md))
 
-Version: **1.1.0** · License: [Unlicense](../LICENSE) (public domain, do whatever you want) · Third-party list: [THIRD_PARTY.md](../THIRD_PARTY.md)
+Version: **1.2.0** · License: [Unlicense](../LICENSE) (public domain, do whatever you want) · Third-party list: [THIRD_PARTY.md](../THIRD_PARTY.md)
 
 ## 1. Map of the project
 
@@ -30,7 +30,7 @@ musicbot/
   commands/            slash commands (/play /help /quality ...)
     helpers.py info.py voice.py controls.py
   dashboard/           local web server (static files + WebSocket) and DashboardCore
-    session.py core.py server.py
+    session.py queuewindow.py core.py server.py   (queuewindow: each browser gets one page of the queue, unchanged lists are not re-sent)
   relay/               optional relay (VPS / Raspberry Pi), only forwards messages
     util.py limits.py worker.py browser.py server.py cli.py
   relay_client.py      the bot at home dials out to the relay

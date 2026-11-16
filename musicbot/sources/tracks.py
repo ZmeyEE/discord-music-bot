@@ -59,6 +59,13 @@ class Track:
             "requester_avatar": self.requester_avatar,
         }
 
+    def signature(self) -> int:
+        """卡片上看得到的內容的指紋：內容沒變指紋就一樣，用來判斷清單要不要重送給瀏覽器
+
+        A fingerprint of what a card shows. Same content = same fingerprint; used to decide whether the list must be re-sent to a browser.
+        """
+        return hash((self.id, self.title, self.thumbnail, self.duration, self.uploader, self.requester, self.requester_avatar))
+
 
 @dataclass
 class Stream:

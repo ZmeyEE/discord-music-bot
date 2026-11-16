@@ -178,6 +178,9 @@ h1, h2, p { margin: 0; font-weight: 400; }
   position: relative; display: flex; gap: 14px; padding: 9px; border-radius: 14px;
   background: var(--card); border: 1px solid var(--line); box-shadow: 0 2px 6px rgba(84, 115, 159, .1);
   cursor: grab; user-select: none; -webkit-user-select: none;
+  /* 捲到很多張時，畫面外的卡片不排版也不繪製，捲動才不會卡 / with many cards loaded, off-screen ones skip layout and paint so scrolling stays smooth */
+  content-visibility: auto; contain-intrinsic-size: auto 86px;
+  flex-shrink: 0;   /* 上面那行會讓畫面外的卡片沒有最小高度，不設這個在窄螢幕會被壓扁 / the line above removes the minimum height of off-screen cards; without this they get squashed on narrow screens */
   /* 注意：不能對 transform 做 transition，否則拖曳時跟著滑鼠的浮動複本會慢半拍
      Note: never transition `transform`, or the floating drag copy would lag behind the mouse */
   transition: box-shadow .16s, border-color .16s;
@@ -503,10 +506,17 @@ body.offline .board, body.offline .topbar .controls > :not(.lang) { opacity: .4;
   .topbar { padding-inline: 16px; }
 }
 @media (max-width: 860px) {
+  /* 窄螢幕（手機）：三欄疊成一欄，整頁往下捲
+     寬螢幕時 body 固定一個畫面高、面板各自捲；這裡要解開那些高度限制，不然面板會被壓扁、互相重疊
+     Narrow screens (phones): the three columns stack and the whole page scrolls.
+     On wide screens the body is one screen tall and each panel scrolls on its own; those height limits are lifted here,
+     otherwise the panels get squashed and overlap. */
+  html, body { height: auto; min-height: 100%; }
   body { overflow: auto; }
-  .board { grid-template-columns: 1fr; }
+  .board { grid-template-columns: minmax(0, 1fr); flex: none; }   /* minmax(0, …)：欄寬不被內容撐超過螢幕 / the column may not be pushed wider than the screen by its content */
+  .panel { min-height: auto; }
   .col-trash { min-height: 160px; }
-  .cards { overflow: visible; margin-right: 0; }
+  .cards { overflow: visible; margin-right: 0; flex: none; }
   .seg button span { display: none; }
 }
 

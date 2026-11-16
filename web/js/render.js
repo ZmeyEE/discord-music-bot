@@ -2,9 +2,10 @@
    Rendering: draw a server snapshot (the single entry for screen updates), and the verify gate */
 import { syncBili } from "./bili.js";
 import { syncQueue } from "./cards.js";
-import { countEl, guildNameEl, loopBtns, qualityBtns, queueMoreEl, queuePanel } from "./dom.js";
+import { countEl, guildNameEl, loopBtns, qualityBtns, queuePanel } from "./dom.js";
 import { syncNow } from "./now.js";
 import { permBanner, syncLimit, syncPerms } from "./perms.js";
+import { keepQueue, syncQueueMore } from "./queuewindow.js";
 import { tick } from "./seek.js";
 import { S } from "./store.js";
 import { playersBar, syncPlayers } from "./tabs.js";
@@ -47,6 +48,7 @@ export function refresh() { if (S.state) render(S.state, true); }
  * @param {boolean} again 是 refresh() 觸發的重畫（不更新 recvAt）/ true when triggered by refresh() (recvAt is not updated)
  */
 export function render(s, again = false) {
+  keepQueue(s);                        // 伺服器沒重送清單時沿用手上那份 / keep our copy when the server didn't re-send the list
   S.state = s;
   if (!again) S.recvAt = performance.now();
   if (s.me && s.me.pending) { showVerify(); return; }   // 還沒驗證：只顯示驗證畫面 / not verified yet: show only the verify screen
@@ -75,10 +77,9 @@ export function render(s, again = false) {
   for (const b of qualityBtns) b.setAttribute("aria-checked", String(Number(b.dataset.q) === s.quality.kbps));
 
   syncQueue(v.queue);
-  const total = v.queue_total ?? v.queue.length;   // 看板最多畫前 1000 張，總數另外給 / the board draws at most the first 1000 cards, the total comes separately
+  const total = v.queue_total ?? v.queue.length;   // 只載入前面一段，總數另外給 / only the first part is loaded, the total comes separately
   setText(countEl, String(total));
-  queueMoreEl.hidden = total <= v.queue.length;
-  if (!queueMoreEl.hidden) setText(queueMoreEl, T("queueMore", { shown: v.queue.length, more: total - v.queue.length }));
+  syncQueueMore(v);
   queuePanel.classList.toggle("is-empty", total === 0);
   syncNow(v);
   syncPerms(s);

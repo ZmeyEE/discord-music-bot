@@ -173,7 +173,18 @@ async def main():
     async def expire_hold(req):
         hub._ceiling_until = 0.0; hub._notify_all()
         return web.json_response({"limit": hub.stream_limit})
-    dbg = web.Application(); dbg.add_routes([web.get("/tick", tick), web.get("/expire_hold", expire_hold), web.get("/shutdown", shutdown), web.get("/move", move), web.get("/token", token), web.get("/info", info),
+    async def fill(req):              # /fill?n=5000：直接在第一個播放器塞 n 首假曲目（測大清單的效能）/ put n fake tracks into the first player (large-queue performance tests)
+        from musicbot.sources import Track
+        n = int(req.query.get("n", 1000)); st = hub.workers[0].state(GID)
+        st.queue.extend(Track(url=f"https://www.bilibili.com/video/BV1xx{i:07d}", title=f"測試曲目 {i:04d} - 某某歌手 官方版 MV", requester="小明",
+                              duration=180 + i % 120, uploader="上傳者", enriched=True) for i in range(n))
+        hub.notify(GID)
+        return web.json_response({"queue": len(st.queue)})
+    async def poke(req):              # /poke?n=20：連續通知 n 次狀態改變（模擬有人進出頻道、補縮圖…）/ n state-change notifications in a row (people joining, thumbnails arriving...)
+        for _ in range(int(req.query.get("n", 1))):
+            hub.notify(GID); await asyncio.sleep(float(req.query.get("gap", 0.1)))
+        return web.json_response({"ok": True})
+    dbg = web.Application(); dbg.add_routes([web.get("/tick", tick), web.get("/fill", fill), web.get("/poke", poke), web.get("/expire_hold", expire_hold), web.get("/shutdown", shutdown), web.get("/move", move), web.get("/token", token), web.get("/info", info),
         web.get("/revoke", revoke), web.get("/regdevice", regdevice),
         web.get("/restart_registry", restart_registry), web.get("/registry_file", registry_file)])
     r = web.AppRunner(dbg); await r.setup(); await web.TCPSite(r, "127.0.0.1", 8767).start()

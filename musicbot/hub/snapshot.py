@@ -16,13 +16,15 @@ log = logging.getLogger("musicbot")
 
 
 class SnapshotMixin:
-    def snapshot(self, gid: int, ctx: UserCtx, pid: str | None, cache: dict | None = None) -> dict | None:
+    def snapshot(self, gid: int, ctx: UserCtx, pid: str | None, cache: dict | None = None, queue_limit: int | None = None) -> dict | None:
         """給一個瀏覽器的完整狀態，cache：同一次廣播給多個瀏覽器時共用的暫存，
         與"這個人是誰"無關的部分（播放器摘要、頻道清單、佇列）只算一次
 
         The full state for one browser. ``cache`` is shared across the browsers of one broadcast so the
         parts that don't depend on who is looking (player summary, channel list, queue) are computed once.
         Returns None when the bot isn't in that server.
+        ``queue_limit`` = 這個瀏覽器要看前幾首待播（None = 上限 QUEUE_VIEW）
+        ``queue_limit`` = how many queued songs this browser wants (None = up to QUEUE_VIEW).
         """
         cache = {} if cache is None else cache
         players = self.players(gid)
@@ -52,9 +54,9 @@ class SnapshotMixin:
         if selected is None:
             state = _EMPTY_PLAYER
         else:
-            state = cache.get(("player", selected.pid))
+            state = cache.get(("player", selected.pid, queue_limit))
             if state is None:
-                state = cache[("player", selected.pid)] = selected.worker.player_state(selected.guild)
+                state = cache[("player", selected.pid, queue_limit)] = selected.worker.player_state(selected.guild, queue_limit)
         channels = cache.get(("channels", gid))
         if channels is None:
             channels = cache[("channels", gid)] = self.channel_list(gid)
@@ -79,6 +81,7 @@ class SnapshotMixin:
             },
             "bili": bili,
             "quality": {"kbps": config.quality_for(gid), "choices": list(params.QUALITY_CHOICES)},
+            "queue_window": {"page": params.QUEUE_PAGE, "max": params.QUEUE_VIEW},   # 給網頁：一次載入幾首、最多幾首 / for the page: songs per load and the most it may load
             **state,
         }
 

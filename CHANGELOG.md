@@ -3,6 +3,18 @@
 格式參考 [Keep a Changelog](https://keepachangelog.com/)，版本號遵循 [SemVer](https://semver.org/lang/zh-TW/)
 Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [SemVer](https://semver.org/)
 
+## [1.2.0] - 2026-11-16
+
+### 修正 / Fixes
+- 大清單很卡：原本每次狀態一變就把整份清單（1000 張卡片 287 KB）重送給每個瀏覽器，現在一開始只送 100 首、往下捲再載入（最多 1000），清單沒變就不重送；5000 首時 20 次通知從 5.7 MB 降到 33 KB，網頁節點從 22,222 個降到 2,422 個 / large queues were laggy: every state change re-sent the whole list (1000 cards, 287 KB) to every browser. Now 100 songs are sent at first, scrolling loads more (up to 1000) and an unchanged list is not sent again; with 5000 songs, 20 notifications went from 5.7 MB to 33 KB and the page from 22,222 DOM nodes to 2,422
+- 手機寬度的版面：面板被壓扁、互相重疊、會左右捲，現在三欄疊成一欄、整頁往下捲 / phone-width layout: panels were squashed, overlapped and scrolled sideways; now the three columns stack and the whole page scrolls
+- `.env` 裡的 `MAX_QUEUE`、`EMPTY_LEAVE_SECONDS`、`IDLE_LEAVE_SECONDS` 之前沒有生效（參數在 `.env` 讀進來之前就定下來了）/ `MAX_QUEUE`, `EMPTY_LEAVE_SECONDS` and `IDLE_LEAVE_SECONDS` in `.env` had no effect (the parameters were fixed before `.env` was read)
+- 控制面板修正：游標停在按鈕上會凍住（現在按鈕用座標判斷滑鼠，不再自己觸發自己）、重複開啟會把已開著的視窗叫到最前面、找不到視窗的舊程序（包含不同檔名的 exe）會問要不要關掉、關視窗時外部啟動的機器人會先問、停止在背景做不卡視窗、exe 放在專案隔壁時自己找得到專案 / control panel fixes: the freeze when the pointer rests on a button (buttons are now hit-tested by coordinates, so they no longer trigger themselves), a second launch brings the open window forward, an old process with no window (even an exe with another name) is offered to be closed, closing asks about a bot started elsewhere, stopping runs in the background, and the project is found when the exe sits next to it
+- 控制面板 exe 檔名帶版本（`MusicBotLauncher-1.1.0.exe`），版本也寫進檔案版本資訊，視窗標題旁顯示 v1.1.0；用 `python launcher/build.py` 打包 / the exe file name carries the version (`MusicBotLauncher-1.1.0.exe`), the version is also in the file version info and shown next to the window title; build with `python launcher/build.py`
+
+### 變更 / Changed
+- 預設不打擾頻道裡的其他人：指令回覆只有下指令的人看得到，機器人只在出問題時才在頻道發訊息（不再每首歌發"正在播放"）；要回到原本的樣子，在 `.env` 設 `PUBLIC_REPLIES=1` 和 `CHANNEL_NOTICES=all` / by default other people in the channel are not disturbed: command replies are visible to the caller only and the bot posts in a channel only when something went wrong (no more "now playing" for every song); set `PUBLIC_REPLIES=1` and `CHANNEL_NOTICES=all` in `.env` for the old behaviour
+
 ## [1.1.0] - 2026-11-16
 
 ### 新增 / Added
@@ -21,8 +33,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow 
 - 長檔案依功能拆開：`player/`、`hub/`、`sources/`、`health/`、`relay/`、`dashboard/`、`commands/`、`app.py` 拆出 `tuning.py` 與 `logging_setup.py`，最長的檔案約 210 行 / long files are split by feature, the longest file is about 210 lines
 - 網頁 `app.js`（1168 行）拆成 `web/js/` 的 16 個 ES 模組，最長 137 行 / the 1168-line `app.js` is split into 16 ES modules in `web/js/`, the longest is 137 lines
 - 桌面小視窗（`launcher/`）重建：配色、膠囊按鈕、半透明卡片和狀態燈都跟網頁看板一致，程式拆成 `launcher/botpanel/` 的 7 個小檔（最長 155 行），啟動／停止的邏輯不碰畫面，新增 `tests/launcher_unit.py`（23 項）/ the desktop window (`launcher/`) is rebuilt: colours, pill buttons, frosted cards and the status light match the dashboard; the code is split into 7 small files in `launcher/botpanel/` (the longest is 155 lines), the start / stop logic never touches the UI, and `tests/launcher_unit.py` (23 checks) is new
-- 控制面板修正：游標停在按鈕上會凍住（現在按鈕用座標判斷滑鼠，不再自己觸發自己）、重複開啟會把已開著的視窗叫到最前面、找不到視窗的舊程序（包含不同檔名的 exe）會問要不要關掉、關視窗時外部啟動的機器人會先問、停止在背景做不卡視窗、exe 放在專案隔壁時自己找得到專案 / control panel fixes: the freeze when the pointer rests on a button (buttons are now hit-tested by coordinates, so they no longer trigger themselves), a second launch brings the open window forward, an old process with no window (even an exe with another name) is offered to be closed, closing asks about a bot started elsewhere, stopping runs in the background, and the project is found when the exe sits next to it
-- 控制面板 exe 檔名帶版本（`MusicBotLauncher-1.1.0.exe`），版本也寫進檔案版本資訊，視窗標題旁顯示 v1.1.0；用 `python launcher/build.py` 打包 / the exe file name carries the version (`MusicBotLauncher-1.1.0.exe`), the version is also in the file version info and shown next to the window title; build with `python launcher/build.py`
 - 行為沒有改：測試全過，網頁用瀏覽器實際操作過一遍（加歌、暫停、跳轉、分頁選單、刪除、換語言）/ no behavior change: all tests pass and the dashboard was driven in a real browser (add, pause, seek, tab menu, remove, switch language)
 
 ### 實測 / Measured

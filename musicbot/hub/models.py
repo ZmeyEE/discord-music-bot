@@ -54,4 +54,4 @@ class Player(NamedTuple):
         return self.worker.state(self.guild.id)
 
 
-_EMPTY_PLAYER = {"connected": False, "channel": None, "paused": False, "loop": "off", "current": None, "queue": [], "queue_total": 0}   # 沒有播放器時給前端的空狀態 / the empty state sent to the front-end when no player is selected
+_EMPTY_PLAYER = {"connected": False, "channel": None, "paused": False, "loop": "off", "current": None, "queue": [], "queue_total": 0, "queue_sig": 0}   # 沒有播放器時給前端的空狀態 / the empty state sent to the front-end when no player is selected

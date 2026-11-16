@@ -4,7 +4,7 @@
 這份給想改它的人：新增語言、改配色、優化音源到 Discord 的路徑、把看板 UI 用在別的地方
 (English version: [DEVELOPING.en.md](DEVELOPING.en.md))
 
-版本：**1.1.0** · 授權：[Unlicense](../LICENSE)（公有領域，想怎麼改都可以）· 第三方清單：[THIRD_PARTY.md](../THIRD_PARTY.md)
+版本：**1.2.0** · 授權：[Unlicense](../LICENSE)（公有領域，想怎麼改都可以）· 第三方清單：[THIRD_PARTY.md](../THIRD_PARTY.md)
 
 ## 1. 專案地圖
 
@@ -30,7 +30,7 @@ musicbot/
   commands/            斜線指令（/play /help /quality …）
     helpers.py info.py voice.py controls.py
   dashboard/           本機網頁伺服器（靜態檔 + WebSocket）與 DashboardCore
-    session.py core.py server.py
+    session.py queuewindow.py core.py server.py   （queuewindow：每個瀏覽器只拿一頁待播清單，沒變就不重送）
   relay/               選用的中繼站（VPS／樹莓派），只轉送訊息
     util.py limits.py worker.py browser.py server.py cli.py
   relay_client.py      家裡的 bot 主動連出去連中繼站

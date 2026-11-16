@@ -15,6 +15,7 @@
      最底層 lowest layer  util.js 小工具 · store.js 共用狀態 · dom.js 常用節點
      畫面零件 pieces      effects.js 撕裂特效 · cards.js 待播卡片 · now.js 正在播放 · seek.js 進度條
      功能 features        dragdrop.js 拖曳 · controls.js 其他控制 · add.js 加歌 · tabs.js 分頁 · perms.js 權限 · bili.js Bilibili 帳號
+     清單視窗 window      queuewindow.js 只載入前面一段、往下捲再要、沒變就不重送
      組合 assembly        render.js 把快照畫到畫面 · net.js WebSocket 連線 · picker.js 沒指定伺服器時的選單
    從下往上讀：先看底層，再看零件，最後看 render.js 怎麼把它們串起來
    Read from the bottom up: the lowest layer first, then the pieces, and finally how render.js ties them together.

@@ -66,11 +66,11 @@ class DashboardCore:
 
         Create a session and send the first state snapshot; returns None if the bot isn't in that guild.
         """
-        snap = self.hub.snapshot(gid, ctx, None)
+        sess = Session(gid, ctx, emit)
+        snap = self._state_for(sess)
         if snap is None:
             await emit({"type": "error", "code": "guild", "text": "機器人不在這個伺服器，請確認網址"})
             return None
-        sess = Session(gid, ctx, emit)
         self.sessions.setdefault(gid, set()).add(sess)
         await emit({"type": "state", "data": snap})
         if self.hub.mode == "verify" and ctx.user_id and ctx.via == "link":
@@ -95,9 +95,7 @@ class DashboardCore:
     async def _demote_notify(self, sess: Session) -> None:
         """通知瀏覽器"你被撤銷了"並送出降級後的狀態 / Tell the browser it was revoked and send the downgraded state."""
         await self._safe_emit(sess, {"type": "revoked"})
-        snap = self.hub.snapshot(sess.gid, sess.ctx, None)
-        if snap:
-            await self._safe_emit(sess, {"type": "state", "data": snap})
+        await self._send_state(sess)
 
     def close(self, sess: Session) -> None:
         """結束一個工作階段並取消它的背景工作 / End one session and cancel its background work."""
@@ -121,9 +119,10 @@ class DashboardCore:
             return
         if t == "select":
             sess.pid = str(data.get("pid") or "") or None
-            snap = self.hub.snapshot(sess.gid, sess.ctx, sess.pid)
-            if snap:
-                await self._safe_emit(sess, {"type": "state", "data": snap})
+            await self._send_state(sess)
+        elif t == "queue_window":      # 網頁要更多待播卡片（往下捲），或一連上就告訴我們它懂"沒變就不送" / the page wants more queued cards (scrolling), or says on connect that it understands "unchanged, not sent"
+            sess.view.ask(data.get("limit"))
+            await self._send_state(sess)
         elif t == "bili_login_start":
             if not self.hub.is_owner(sess.ctx):
                 await self._safe_emit(sess, {"type": "toast", "text": "只有機器人的擁有者可以更換 Bilibili 帳號"})
@@ -184,6 +183,21 @@ class DashboardCore:
         self._pending.discard(gid)
         shared: dict = {}          # 這一輪廣播共用：與"是誰在看"無關的部分只算一次 / shared by this round: the viewer-independent parts are computed once
         for sess in list(self.sessions.get(gid, ())):
-            snap = self.hub.snapshot(gid, sess.ctx, sess.pid, shared)
+            snap = self._state_for(sess, shared)
             if snap is not None:
                 asyncio.create_task(self._safe_emit(sess, {"type": "state", "data": snap}))
+
+    def _state_for(self, sess: Session, cache: dict | None = None) -> dict | None:
+        """這個瀏覽器現在該收到的狀態：依它的清單視窗取快照，清單沒變就不帶 queue（所有送狀態的地方都走這裡）
+
+        The state this browser should get now: a snapshot cut to its queue window, without ``queue`` when the list is
+        unchanged. Every place that sends a state goes through here.
+        """
+        snap = self.hub.snapshot(sess.gid, sess.ctx, sess.pid, cache, sess.view.limit)
+        return None if snap is None else sess.view.trim(snap)
+
+    async def _send_state(self, sess: Session) -> None:
+        """只送狀態給這一個瀏覽器 / Send the state to this one browser only."""
+        snap = self._state_for(sess)
+        if snap is not None:
+            await self._safe_emit(sess, {"type": "state", "data": snap})

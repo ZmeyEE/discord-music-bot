@@ -46,9 +46,13 @@ class VoiceMixin:
         st.joined_at = time.monotonic()
         return vc
 
-    async def _say(self, st: GuildState, text: str) -> None:
-        """在記錄的文字頻道發訊息；失敗就算了 / Post a message in the remembered text channel; failures are ignored."""
-        if not st.text_channel_id:
+    async def _say(self, st: GuildState, text: str, problem: bool = False) -> None:
+        """在記錄的文字頻道發訊息；失敗就算了，problem=True 表示在回報問題（要不要發由 params.CHANNEL_NOTICES 決定）
+
+        Post a message in the remembered text channel; failures are ignored. ``problem=True`` marks a report of something
+        that went wrong; whether it is posted at all is decided by params.CHANNEL_NOTICES.
+        """
+        if not st.text_channel_id or not params.notices_allow(problem):
             return
         ch = self.get_channel(st.text_channel_id)
         if ch:
@@ -85,6 +89,7 @@ class VoiceMixin:
                         st,
                         "語音端對端加密（DAVE）尚未就緒，頻道內的人可能聽不到聲音。"
                         "請試著 `/stop` 後再 `/play`，並確認 Discord 客戶端是最新版。",
+                        problem=True,
                     )
             except Exception as exc:  # noqa: BLE001
                 log.warning("語音診斷失敗：%s", exc)

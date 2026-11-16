@@ -1,4 +1,4 @@
-"""打包控制面板成 exe：檔名帶版本（MusicBotLauncher-1.1.0.exe），並把版本寫進 Windows 的檔案版本資訊
+"""打包控制面板成 exe：檔名帶版本（MusicBotLauncher-<版本>.exe），並把版本寫進 Windows 的檔案版本資訊
 
 用法：
   pip install pyinstaller
@@ -7,7 +7,7 @@
 
 版本號來自 launcher/botpanel/__init__.py 的 __version__，圖示是 launcher/MusicBotLauncher.ico
 
-Build the control panel into an exe: the file name carries the version (MusicBotLauncher-1.1.0.exe) and the version is
+Build the control panel into an exe: the file name carries the version (MusicBotLauncher-<version>.exe) and the version is
 written into the Windows file version info (right click -> Properties -> Details).
 
 Usage:

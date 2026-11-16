@@ -2,6 +2,7 @@
    Connection: the WebSocket, reconnecting, server messages, sending actions */
 import { onBiliMessage } from "./bili.js";
 import { permBanner } from "./perms.js";
+import { announceWindow } from "./queuewindow.js";
 import { render } from "./render.js";
 import { S, TOKEN_KEY, gid, saveDevice } from "./store.js";
 import { playersBar } from "./tabs.js";
@@ -9,7 +10,7 @@ import { $, setStatus, setText, toast } from "./util.js";
 
 let retry = 0;   // 重連次數，用來算等待時間 / reconnect count, drives the delay
 
-export const OK_ON_EMPTY_TAB = new Set(["add", "select", "quality", "bili_login_start", "bili_login_cancel", "bili_logout"]);
+export const OK_ON_EMPTY_TAB = new Set(["add", "select", "quality", "queue_window", "bili_login_start", "bili_login_cancel", "bili_logout"]);
 
 /** 送一則訊息給伺服器（連線中才送；空分頁會擋下不允許的操作）/ Send a message to the server (only while connected; empty tabs block disallowed actions). */
 export const send = (obj) => {
@@ -40,7 +41,7 @@ export function connect() {
   if (S.token) params.set("t", S.token);
   if (S.device) params.set("d", S.device);
   S.ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/${gid}?${params}`);
-  S.ws.onopen = () => { retry = 0; };
+  S.ws.onopen = () => { retry = 0; announceWindow(); };
   S.ws.onmessage = (ev) => {
     const msg = JSON.parse(ev.data);
     if (msg.type === "state") render(msg.data);

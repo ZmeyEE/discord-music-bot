@@ -36,14 +36,14 @@ def load_env() -> None:
     Read ``.env`` (KEY=VALUE per line). Variables that already exist in the real environment
     win, so you can still override a value from the command line.
     """
-    if not ENV_FILE.exists():
-        return
-    for line in ENV_FILE.read_text(encoding="utf-8-sig").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+    if ENV_FILE.exists():
+        for line in ENV_FILE.read_text(encoding="utf-8-sig").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+    params.apply_env()   # 參數檔在 .env 之前就載入了，這裡把 .env 裡的值補套進去 / params was imported before .env was read; apply the .env values now
 
 
 def env_int(name: str, default: int) -> int:

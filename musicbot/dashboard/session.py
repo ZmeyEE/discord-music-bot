@@ -5,10 +5,11 @@ The record of one browser connection, and nickname cleaning
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Awaitable, Callable
 
 from ..hub import UserCtx
+from .queuewindow import QueueView
 
 Emit = Callable[[dict], Awaitable[None]]   # "把一則訊息送給某個瀏覽器"的函式型別 / type of "send one message to one browser"
 
@@ -32,3 +33,4 @@ class Session:
     emit: Emit                                      # 把訊息送回這個瀏覽器 / sends a message back to this browser
     pid: str | None = None                          # 使用者在介面上選的播放器；None = 自動跟著他所在的頻道 / the player picked in the UI; None = follow the channel the user is in
     bili_task: asyncio.Task | None = None           # 進行中的 Bilibili QR 登入流程 / the running Bilibili QR-login flow, if any
+    view: QueueView = field(default_factory=QueueView)   # 它的待播清單視窗（見 queuewindow.py）/ its queue window (see queuewindow.py)
