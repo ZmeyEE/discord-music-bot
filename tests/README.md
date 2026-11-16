@@ -32,12 +32,12 @@ Your real `settings.json` and `members.json` are never touched (tests use `setti
 | 腳本 / Script | 模式 / Mode | 測什麼 / What it checks |
 | --- | --- | --- |
 | `hub_test.py` | voice | 語音模式的權限、多頻道、分身預約 / voice-mode permissions, multi-channel, clone reservation |
-| `open_test.py` | open | 開放模式、加歌／刪除／排序／循環 / open mode, add / remove / reorder / loop |
-| `loop_test.py` | open | 單曲與列表循環、刪除正在播放的 / single and queue loop, deleting the current track |
-| `seek_test.py` | open | 拖曳進度條跳轉 / seeking with the progress bar |
-| `quality_test.py` | open | 切換音質與實際位元率 / quality switch and the real bitrate |
+| `link_test.py` | verify | 開放模式、加歌／刪除／排序／循環 / personal-link entry, add / remove / reorder / loop |
+| `loop_test.py` | verify | 單曲與列表循環、刪除正在播放的 / single and queue loop, deleting the current track |
+| `seek_test.py` | verify | 拖曳進度條跳轉 / seeking with the progress bar |
+| `quality_test.py` | verify | 切換音質與實際位元率 / quality switch and the real bitrate |
 | `verify_test.py` | verify | 專屬連結、裝置憑證、撤銷、退出伺服器 / personal links, device tokens, revoke, leaving the server |
-| `health_test.py` | open | 卡頓偵測與從最後加入的頻道開始停止 / stutter detection and stopping the newest channel first |
+| `health_test.py` | verify | 卡頓偵測與從最後加入的頻道開始停止 / stutter detection and stopping the newest channel first |
 | `avatar_test.py` | verify | 點歌者頭像 / requester avatars |
 | `health_unit.py` | 獨立 / standalone | 卡頓偵測的單元測試（假時間）/ unit tests for the stutter detector (fake time) |
 | `harden_test.py` | 獨立 / standalone | 中繼站加固：路徑穿越、限流、握手封鎖 / relay hardening: path traversal, rate limits, handshake lock-out |
@@ -50,3 +50,14 @@ Your real `settings.json` and `members.json` are never touched (tests use `setti
 2. 把它登記到 `run_all.py` 的 `SUITES`（要 harness 的）或 `STANDALONE`
    Register it in `SUITES` (needs the harness) or `STANDALONE` in `run_all.py`
 3. 測試裡不要放任何真的 Token、ID 或個人資料 / no real tokens, IDs or personal data in tests
+
+2.0 新增 / added in 2.0:
+
+| 腳本 / Script | 模式 / Mode | 內容 / What it checks |
+| --- | --- | --- |
+| `library_unit.py` | standalone | 歌單資料夾樹與存檔 / the library's folder tree and persistence |
+| `spotify_unit.py` | standalone | Spotify 連結（假的 Spotify 回應）/ the Spotify link (with fake answers) |
+| `audio_unit.py` | standalone | 音訊管線：直通、重編參數、封包檢查 / audio pipeline: direct, encoder settings, packet check |
+| `library_test.py` | verify | 歌單操作走真的 WebSocket、各人隔離、資料夾循環 / library actions over the real WebSocket, isolation, folder loops |
+| `perf_ui.py` | verify | 無頭 Chrome 量 2500 張卡片的捲動／刪除／拖曳 fps（找不到 Chrome 或 Edge 就略過）/ headless Chrome measures scroll / delete / drag fps with 2500 cards (skipped without Chrome or Edge) |
+| `library_ui.py` | verify | 歌單介面全流程，含假 Spotify（同上略過規則）/ the library screens end to end, with a fake Spotify (same skip rule) |

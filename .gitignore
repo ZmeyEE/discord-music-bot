@@ -32,3 +32,9 @@ tests/members_test.json
 .idea/
 .DS_Store
 Thumbs.db
+library.json
+library.tmp
+tests/library_test.json
+spotify_tokens.json
+spotify_tokens.tmp
+tests/spotify_test.json

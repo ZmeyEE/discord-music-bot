@@ -21,7 +21,7 @@ res = []
 def check(n, ok, d=""): res.append(bool(ok)); print(("PASS" if ok else "FAIL"), n, str(d)[:190], flush=True)
 
 PAGE, VIEW = params.QUEUE_PAGE, params.QUEUE_VIEW
-check("P1 一頁 100、一個瀏覽器最多 1000", (PAGE, VIEW) == (100, 1000), (PAGE, VIEW))
+check("P1 一頁 100、一個瀏覽器最多 1000", (PAGE, VIEW) == (100, 5000), (PAGE, VIEW))
 
 # ============ 視窗大小 ============
 v = QueueView()
@@ -63,7 +63,10 @@ g = SimpleNamespace(id=1, voice_client=None)
 w, st = make(1500)
 d = w.player_state(g, PAGE)
 check("S1 5000 首也只給一頁，總數另外給", len(d["queue"]) == PAGE and d["queue_total"] == 1500, (len(d["queue"]), d["queue_total"]))
-check("S2 沒指定大小 = 上限 1000；要超過上限也只給 1000", len(w.player_state(g)["queue"]) == VIEW and len(w.player_state(g, 99999)["queue"]) == VIEW)
+from unittest import mock
+with mock.patch.object(params, "QUEUE_VIEW", 1000):
+    check("S2 沒說要幾首 = 給到上限；要太多也只給上限（這裡把上限調成 1000 來測）", len(w.player_state(g)["queue"]) == 1000 and len(w.player_state(g, 99999)["queue"]) == 1000)
+check("S2b 上限 5000 大於清單時，就是整份清單", len(w.player_state(g)["queue"]) == 1500 and len(w.player_state(g, 99999)["queue"]) == 1500)
 sig = d["queue_sig"]
 check("S3 內容沒變，指紋不變", w.player_state(g, PAGE)["queue_sig"] == sig)
 st.queue[500].title = "視窗外面的歌改名"

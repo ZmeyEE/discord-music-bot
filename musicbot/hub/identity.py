@@ -25,9 +25,9 @@ class IdentityMixin:
         return f"{self.base_url}/g/{guild_id}?t={auth.make_token(self.secret, guild_id, user_id, name)}"
 
     def guild_url(self, guild_id: int) -> str:
-        """所有人共用的看板網址（開放模式不需要各自的連結）
+        """看板網址（不帶身分，只有本機能直接用；其他人要用 link_for 的專屬連結）
 
-        The shared dashboard URL (open mode doesn't need personal links).
+        The dashboard URL without an identity (works directly only on the local machine; everyone else needs the personal link from link_for).
         """
         return f"{self.base_url}/g/{guild_id}"
 
@@ -38,14 +38,6 @@ class IdentityMixin:
     def ctx_from_token(self, identity: auth.Identity) -> UserCtx:
         """把驗證過的連結憑證變成身分 / Turn a verified link token into an identity."""
         return UserCtx(identity.user_id, identity.name, is_owner=identity.user_id in self.owner_ids, via="link")
-
-    @staticmethod
-    def guest_ctx(name: str) -> UserCtx:
-        """開放模式下沒帶憑證的訪客：能控制播放，但不是擁有者（不能動 Bilibili 帳號）
-
-        A guest without a token in open mode: may control playback but is not an owner (can't touch the Bilibili account).
-        """
-        return UserCtx(None, name or "訪客", via="guest")
 
     @staticmethod
     def pending_ctx() -> UserCtx:

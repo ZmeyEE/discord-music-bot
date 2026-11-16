@@ -71,13 +71,47 @@ with mock.patch.object(urllib.request, "urlopen", lambda req, timeout=0: Resp("<
         check("S6 頁面格式變了要給明確錯誤", "格式變了" in str(exc), exc)
 
 # ============ 對應歌曲 ============
+from musicbot.sources import match as M
+from musicbot.sources.tracks import Stream
+
 def c(title, dur, url="https://v/x"): return {"title": title, "duration": dur, "url": url + title}
-check("M1 長度最接近的優先（差 6 秒內）", S.pick_match([c("a", 263), c("b", 204), c("c", 201)], 200)["title"] == "b")
+check("M1 長度對得上的排前面（差 6 秒內）", [x["title"] for x in M.rank([c("a", 263), c("b", 204), c("c", 201)], 200)] == ["b", "c"])
 check("M2 略過伴奏／翻唱／混音", S.pick_match([c("Song (Cover)", 200), c("Song 伴奏", 200), c("Song official", 201)], 200, "Song")["title"] == "Song official")
 check("M3 原曲名就有 remix 時不略過", S.pick_match([c("Song (Remix)", 200)], 200, "Song (Remix)")["title"] == "Song (Remix)")
-check("M4 長度都對不上就取第一個", S.pick_match([c("x", 100), c("y", 500)], 200)["title"] == "x")
+check("M4 長度明顯不對的不要（以前會直接拿第一個）", S.pick_match([c("x", 100), c("y", 500)], 200) is None)
 check("M5 沒有結果回 None", S.pick_match([], 200) is None and S.pick_match([{"title": "no url"}], 200) is None)
-check("M6 沒有長度資訊也能挑", S.pick_match([c("x", None)], None)["title"] == "x")
+check("M6 不知道長度的留著，排在長度對的後面", [x["title"] for x in M.rank([c("x", None), c("y", 201)], 200)] == ["y", "x"])
+check("M7 循環版、合集、倍速、現場都略過", M.rank([c("循环歌单丨你", None), c("你 1.1x倍速", 200), c("你 Live 現場", 200), c("10 hours loop", None)], 200, "你") == [])
+
+def stream(title, dur, codec, abr): return Stream("u", {}, title, dur, f"{codec} {abr}kbps", "", codec=codec, abr=abr)
+check("M8 音質分數：無損 > Opus 139 > AAC 169 > AAC 68", M.quality_score(stream("", 1, "flac", 900)) > M.quality_score(stream("", 1, "opus", 139)) > M.quality_score(stream("", 1, "mp4a.40.2", 169)) > M.quality_score(stream("", 1, "mp4a.40.2", 68)))
+check("M9 實際長度 42 分鐘的不算同一首", not M.length_ok(stream("你", 2520, "mp4a.40.2", 68), 267, "你") and M.length_ok(stream("你", 268, "opus", 139), 267, "你"))
+
+# 整個流程（搜尋和取串流都用假的）：Bilibili 第一筆是 42 分鐘的循環版（搜尋結果沒帶長度），第二筆是 96k 的原曲；YouTube 有 139k Opus 的原曲
+# The whole flow with fake search and fetch: Bilibili's first hit is a 42-minute loop (no length in the hit), the second a 96k original; YouTube has the original in 139k Opus
+BILI = [{"title": "", "url": "b1"}, {"title": "", "url": "b2"}]
+YT = [{"title": "你", "duration": 267, "url": "y1"}]
+REAL = {"b1": stream("循环歌单丨【你-郑润泽】", 2520, "mp4a.40.2", 68), "b2": stream("你 - 郑润泽", 266, "mp4a.40.2", 96), "y1": stream("你", 267, "opus", 139)}
+fetched = []
+def fake_extract(url): fetched.append(url); return REAL[url]
+tr = S.Track(url="https://open.spotify.com/track/x", title="你 - 郑润泽", requester="me", duration=267, search="你 郑润泽")
+with mock.patch.object(M, "search", lambda engine, q: BILI if engine == "bilisearch" else YT), mock.patch.object(M, "extract_stream", fake_extract):
+    got = M.extract_stream_for(tr)
+    check("M10 回報的那首歌：不再挑到 68 kbps 的循環版，挑音質最好的原曲", got is REAL["y1"] and tr.matched_url == "y1" and tr.matched == "你", (got.title, got.quality))
+    fetched.clear()
+    again = M.extract_stream_for(tr)
+    check("M11 第二次直接用記住的那支，不再搜尋", again is REAL["y1"] and fetched == ["y1"], fetched)
+tr2 = S.Track(url="s", title="歌", requester="me", duration=200, search="歌")
+with mock.patch.object(M, "search", lambda engine, q: [{"title": "歌", "duration": 200, "url": "b2"}] if engine == "bilisearch" else YT), \
+     mock.patch.object(M, "extract_stream", lambda url: stream("歌", 200, "mp4a.40.2", 192) if url == "b2" else REAL[url]):
+    fetched.clear()
+    got = M.extract_stream_for(tr2)
+    check("M12 Bilibili 已經有 192k 就夠好了，不再去 YouTube", got.abr == 192 and tr2.matched_url == "b2")
+with mock.patch.object(M, "search", lambda engine, q: []), mock.patch.object(M, "extract_stream", fake_extract):
+    try:
+        M.extract_stream_for(S.Track(url="s", title="x", requester="me", duration=200, search="x")); check("M13 都找不到要給明確錯誤", False)
+    except RuntimeError as exc:
+        check("M13 都找不到要給明確錯誤", "找不到對應的歌" in str(exc), exc)
 
 # ============ 待播清單上限 ============
 def make():
@@ -122,9 +156,9 @@ async def queue_cap():
         started.clear(); w._enrich_ahead(1); await asyncio.sleep(0)
     check("Q6 開始播時往後補 10 首，試過的不再補", started == [9], started)
     w = make(); st = w.state(1)
-    st.queue = deque(S.Track(url=f"p{i}", title="t", requester="me") for i in range(1500))
+    st.queue = deque(S.Track(url=f"p{i}", title="t", requester="me") for i in range(6000))
     d = w.player_state(SimpleNamespace(id=1, voice_client=None))
-    check("Q7 看板最多收到前 1000 首，總數另外給", len(d["queue"]) == params.QUEUE_VIEW == 1000 and d["queue_total"] == 1500, (len(d["queue"]), d["queue_total"]))
+    check("Q7 給瀏覽器的清單最多 QUEUE_VIEW（5000）首，總數照實回報", len(d["queue"]) == params.QUEUE_VIEW == 5000 and d["queue_total"] == 6000, (len(d["queue"]), d["queue_total"]))
 
 asyncio.run(queue_cap())
 print(f"{sum(res)}/{len(res)} 通過", flush=True)

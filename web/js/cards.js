@@ -1,6 +1,5 @@
 /* 待播卡片：建立一張卡片、以 id 為 key 的差異更新
-   Queue cards: build one card, keyed diff of the list */
-import { queueEl } from "./dom.js";
+   Queue cards: build one card (which cards are drawn is decided by virtuallist.js) */
 import { tearAway } from "./effects.js";
 import { send } from "./net.js";
 import { $, el, fmt, icon, setText, sized, sourceOf } from "./util.js";
@@ -77,6 +76,9 @@ export function makeCard(t, index) {
   const th = thumb(t.thumbnail, "thumb", 320);
   const idx = el("span", "idx", String(index + 1));
   th.appendChild(idx);
+  const pick = el("span", "pick");     // 選取模式下的勾勾框 / the tick box of select mode
+  pick.appendChild(icon("check"));
+  th.appendChild(pick);
   c._idx = idx;
   c.appendChild(th);
 
@@ -92,41 +94,10 @@ export function makeCard(t, index) {
 
   const act = el("div", "actions");
   act.append(
+    actionButton(T("addToList"), "bookmark", "", () => document.dispatchEvent(new CustomEvent("mb:add-to-list", { detail: { ids: [t.id] } }))),
     actionButton(T("playNow"), "play", "", () => send({ type: "play_now", id: t.id })),
     actionButton(T("remove"), "close", "x", () => { tearAway(c); send({ type: "remove", id: t.id }); }),
   );
   c.appendChild(act);
   return c;
-}
-
-/* ------------------------------------------------------------- 渲染 / Rendering */
-export const cardCache = new Map();   // id -> 卡片元素 / id -> card element
-
-/**
- * 待播清單的差異更新：只新增／移除／更新有變的卡片，順序不對才移動
- * Keyed diff of the queue list: add / remove / update only the cards that changed, and move a card
- * only when its position is wrong.
- */
-export function syncQueue(list) {
-  const wanted = new Set(list.map((t) => t.id));
-  for (const [id, node] of cardCache) {
-    if (!wanted.has(id)) { node.remove(); cardCache.delete(id); }
-  }
-  let cursor = queueEl.firstElementChild;
-  list.forEach((t, i) => {
-    let node = cardCache.get(t.id);
-    if (!node) {
-      node = makeCard(t, i);
-      cardCache.set(t.id, node);
-    } else if (node.dataset.sig !== cardSig(t)) {          // 內容變了（例如補抓到標題／縮圖）才重建 / rebuild only when content changed (e.g. title/thumbnail arrived)
-      const fresh = makeCard(t, i);
-      node.replaceWith(fresh);
-      if (node === cursor) cursor = fresh;
-      node = fresh;
-      cardCache.set(t.id, node);
-    }
-    if (node._idx) setText(node._idx, String(i + 1));
-    if (node === cursor) cursor = cursor.nextElementSibling;
-    else queueEl.insertBefore(node, cursor);
-  });
 }

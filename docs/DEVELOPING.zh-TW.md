@@ -4,7 +4,7 @@
 這份給想改它的人：新增語言、改配色、優化音源到 Discord 的路徑、把看板 UI 用在別的地方
 (English version: [DEVELOPING.en.md](DEVELOPING.en.md))
 
-版本：**1.2.0** · 授權：[Unlicense](../LICENSE)（公有領域，想怎麼改都可以）· 第三方清單：[THIRD_PARTY.md](../THIRD_PARTY.md)
+版本：**2.0.0** · 授權：[Unlicense](../LICENSE)（公有領域，想怎麼改都可以）· 第三方清單：[THIRD_PARTY.md](../THIRD_PARTY.md)
 
 ## 1. 專案地圖
 
@@ -23,8 +23,11 @@ musicbot/
     tracks.py recognize.py resolve.py spotify.py match.py stream.py
   player/              一個 Discord 機器人帳號 = 一個 PlayerBot
     state.py voice.py playback.py recover.py enqueue.py controls.py snapshot.py bot.py
+    audio.py           音訊管線：Opus 來源直通、其他重編（音質優先的參數），見檔頭說明
   hub/                 總指揮：誰能控制、哪個機器人播、狀態快照、操作
-    models.py identity.py routing.py streams.py snapshot.py actions.py bili.py core.py
+    models.py identity.py routing.py streams.py snapshot.py actions.py bili.py library.py spotify.py core.py
+  library/             我的歌單：tree.py 資料夾樹純函式、store.py 存檔（library.json）
+  spotify/             Spotify 帳號連結：client.py 官方 API（授權碼 + PKCE）、accounts.py 憑證存檔
   health/              卡頓偵測，電腦跟不上時由最後加入的頻道開始停
     probe.py ledger.py monitor.py
   commands/            斜線指令（/play /help /quality …）
@@ -36,7 +39,8 @@ musicbot/
   relay_client.py      家裡的 bot 主動連出去連中繼站
 web/                   看板前端，原生 HTML / CSS / JS，不用建置
   js/                  ES 模組，從 main.js 看起，由下往上讀（先 util / store / dom）
-  i18n.js              看板語言
+  i18n.js i18n-library.js   看板語言（歌單的文字在 i18n-library.js，會併進主字典）
+  library.css          我的歌單的樣式
 tests/                 回歸測試（Discord 語音層用假的）
 launcher/              桌面啟動／關閉小視窗（tkinter，選用）
   botpanel/            paths.py procs.py theme.py widgets.py window.py actions.py logview.py（配色在 theme.py，和看板一致）
@@ -192,3 +196,27 @@ copy .env.example .env                                           # 再把 DISCOR
 - 註解中英雙語，簡短、親切，說明**為什麼**，不只是做什麼
 - 中文標點用逗號 ， 和半形引號，不用日式直角引號，也不用句號（跟整個專案一致）
 - 函式小一點、一個函式一件事，每個函式都要有 docstring
+
+## 11. 容量推算：每個頻道 50 張卡片，一台機器能開多少分身
+
+數字是 2026-11-17 在 i5-12400F（6 核 12 執行緒）、31.8 GB 記憶體上量的（`ffmpeg` 的部分是這次實測，Python 的部分沿用先前 120 個頻道的壓力測試）
+
+| 項目 | 一個頻道的成本 | 這台機器的上限（留餘裕後）|
+| --- | --- | --- |
+| ffmpeg 重編（Bilibili 的 AAC → Opus 256k，soxr）| 約 1.0%（單獨）～ 1.4%（24 個一起跑）個核心 | 約 400 個（用 8 個執行緒的 70%）|
+| ffmpeg 直通（YouTube 的 Opus）| 約 0.03%～0.1% 個核心 | 幾乎不是限制 |
+| ffmpeg 記憶體 | 約 22 MB | — |
+| 一個頻道的其他記憶體（語音連線＋ 50 首待播）| 約 3 MB（50 首待播 < 0.1 MB）| 總共約 26 MB × N，扣掉系統 8 GB 後約 880 個 |
+| Python 主程序（每 20 毫秒送一包，全部頻道共用一個核心，因為 GIL）| 約 0.25% 個核心（120 個頻道實測 30%、沒有遲到的封包）| **這是真正的上限**：維持在 60% 以下約 240 個 |
+| 上傳頻寬 | 每個頻道實際約 64～256 kbps（受頻道位元率限制）| 150 個頻道 × 192 kbps ≈ 29 Mbps |
+| 看板 | 50 張卡片的快照約 14 KB（最多 29 KB），只送給正在看的人；渲染 < 5 ms | 不是限制 |
+
+**結論**：這台機器**同時播放的頻道數安全值約 150、上限約 240**（再多會被卡頓偵測從最後加入的頻道開始停）
+
+**要幾個分身帳號**：一個 Discord 機器人帳號在同一個伺服器只能待一個語音頻道，所以
+`需要的帳號數 = 同一個伺服器裡同時播放的頻道數的最大值`（含主機器人）
+- 150 個頻道分散在 30 個伺服器、每個伺服器最多 5 個頻道同時播 → **6 個帳號**（主機器人 + 5 個分身）
+- 150 個頻道全擠在同一個伺服器 → 要 150 個帳號（實務上不會，這個伺服器的語音頻道也不會這麼多）
+- 每個機器人帳號在未驗證時最多加入 100 個伺服器，伺服器多的話分身可以重複使用同一批
+
+**什麼時候重新量**：換 CPU、換成大量 Bilibili 以外的重編來源、或把重編音質改到 510k 時，重做壓力測試與本節的 ffmpeg 量測

@@ -50,7 +50,7 @@
       resume: "繼續播放", pause: "暫停", nothingPlaying: "目前沒有在播放",
       tabTitlePlaying: "播放中 · {title} · ", emptyTabStatus: "「{channel}」還沒有開始播放 — 在下面貼上網址，機器人就會進去",
       connectedTo: "已連線 · {channel}", notInVoice: "機器人尚未進入語音頻道 — 請在 Discord 使用 /join 或 /play",
-      loading: "載入中…", sourceChip: "來源 {quality} → Opus {bitrate} kbps", stopLeave: "停止並離開語音頻道", seekAria: "播放進度",
+      loading: "載入中…", sourceChip: "來源 {quality} → Opus {bitrate} kbps", sourceDirect: "來源 {quality} → 直通（不重新編碼）", stopLeave: "停止並離開語音頻道", seekAria: "播放進度",
       keyTip: "Enter 加到最後 · Shift+Enter 下一首 · 在頁面任何地方 Ctrl+V 貼上也行",
       resolvingEnd: "解析中，卡片稍後出現…", resolvingNext: "解析中，這首會插到最前面…", pasted: "已貼上，解析中…",
       dropped: "已加入拖進來的連結，解析中…", yourChannel: "你所在的頻道", addToChannel: "＋ 加到頻道",
@@ -106,7 +106,7 @@
       resume: "继续播放", pause: "暂停", nothingPlaying: "目前没有在播放",
       tabTitlePlaying: "播放中 · {title} · ", emptyTabStatus: "“{channel}”还没有开始播放 — 在下面粘贴链接，机器人就会进去",
       connectedTo: "已连接 · {channel}", notInVoice: "机器人还没有进入语音频道 — 请在 Discord 使用 /join 或 /play",
-      loading: "加载中…", sourceChip: "来源 {quality} → Opus {bitrate} kbps", stopLeave: "停止并离开语音频道", seekAria: "播放进度",
+      loading: "加载中…", sourceChip: "来源 {quality} → Opus {bitrate} kbps", sourceDirect: "来源 {quality} → 直通（不重新编码）", stopLeave: "停止并离开语音频道", seekAria: "播放进度",
       keyTip: "Enter 加到最后 · Shift+Enter 下一首 · 在页面任何地方 Ctrl+V 粘贴也行",
       resolvingEnd: "解析中，卡片稍后出现…", resolvingNext: "解析中，这首会插到最前面…", pasted: "已粘贴，解析中…",
       dropped: "已添加拖进来的链接，解析中…", yourChannel: "你所在的频道", addToChannel: "＋ 加到频道",
@@ -162,7 +162,7 @@
       resume: "Resume", pause: "Pause", nothingPlaying: "Nothing is playing",
       tabTitlePlaying: "Playing · {title} · ", emptyTabStatus: "“{channel}” isn't playing yet — paste a link below, the bot will join it",
       connectedTo: "Connected · {channel}", notInVoice: "The bot is not in a voice channel — use /join or /play in Discord",
-      loading: "Loading…", sourceChip: "Source {quality} → Opus {bitrate} kbps", stopLeave: "Stop and leave the voice channel", seekAria: "Playback position",
+      loading: "Loading…", sourceChip: "Source {quality} → Opus {bitrate} kbps", sourceDirect: "Source {quality} → direct (not re-encoded)", stopLeave: "Stop and leave the voice channel", seekAria: "Playback position",
       keyTip: "Enter adds to the end · Shift+Enter plays next · Ctrl+V anywhere on the page also works",
       resolvingEnd: "Resolving, the card shows up soon…", resolvingNext: "Resolving, this song goes to the front…", pasted: "Pasted, resolving…",
       dropped: "Added the dropped link, resolving…", yourChannel: "Your channel", addToChannel: "+ Add channel",
@@ -218,7 +218,7 @@
       resume: "再開", pause: "一時停止", nothingPlaying: "再生中の曲はありません",
       tabTitlePlaying: "再生中 · {title} · ", emptyTabStatus: "「{channel}」はまだ再生していません — 下にリンクを貼ると、ボットが入ります",
       connectedTo: "接続済み · {channel}", notInVoice: "ボットはボイスチャンネルにいません — Discord で /join か /play を使ってください",
-      loading: "読み込み中…", sourceChip: "ソース {quality} → Opus {bitrate} kbps", stopLeave: "停止してボイスチャンネルから退出", seekAria: "再生位置",
+      loading: "読み込み中…", sourceChip: "ソース {quality} → Opus {bitrate} kbps", sourceDirect: "ソース {quality} → そのまま送信（再エンコードなし）", stopLeave: "停止してボイスチャンネルから退出", seekAria: "再生位置",
       keyTip: "Enter で最後に追加 · Shift+Enter で次に再生 · ページのどこでも Ctrl+V で貼り付け可",
       resolvingEnd: "解析中です。カードはまもなく表示されます…", resolvingNext: "解析中です。この曲は先頭に入ります…", pasted: "貼り付けました。解析中…",
       dropped: "ドロップしたリンクを追加しました。解析中…", yourChannel: "あなたのチャンネル", addToChannel: "＋ チャンネルを追加",
@@ -242,6 +242,9 @@
       revoked: "この端末は無効になりました。/help のリンクからもう一度入ってください", workerOffline: "プレイヤーがオフライン", reconnecting: "接続が切れました。再接続中…",
     },
   };
+
+  // 其他檔案（例如 i18n-library.js）放的字，併進主字典 / strings from other files (e.g. i18n-library.js) are merged into the main dictionary
+  for (const [code, strings] of Object.entries(window.I18N_EXTRA || {})) Object.assign(D[code] || (D[code] = {}), strings);
 
   let lang = "zh-TW";
   try {

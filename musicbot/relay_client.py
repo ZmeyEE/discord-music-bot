@@ -113,7 +113,7 @@ class RelayClient:
         """
         last, sent_at = None, 0.0
         while True:
-            payload = {"t": "hello", "open": self.hub.open_access, "guilds": self.hub.guild_list()}
+            payload = {"t": "hello", "open": False, "guilds": self.hub.guild_list()}   # open 一律 False：2.0 起中繼站不公開伺服器清單 / always False: since 2.0 the relay never lists the servers
             if payload != last or time.monotonic() - sent_at >= params.HELLO_INTERVAL:
                 await ws.send_json(payload)
                 last, sent_at = payload, time.monotonic()

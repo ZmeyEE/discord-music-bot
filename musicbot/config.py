@@ -139,29 +139,26 @@ def set_setting(key: str, value) -> None:
 # 看板存取模式與簽章金鑰 / Dashboard access mode and signing secret
 # ============================================================
 def dashboard_mode() -> str:
-    """看板存取模式（DASHBOARD_ACCESS）
-    open（預設）：知道網址的人都能控制所有頻道，不需要任何驗證，只適合信任的網路
-    verify：要先用 Discord 確認身分：輸入 /help，點它給你的專屬連結（點一下就自動綁定，不用輸入任何碼）
-            確認過的成員可以控制所有頻道，顯示真實的 Discord 暱稱，主機會記住他們的裝置，放公網時建議用這個
-    voice：每人用 /help 的專屬連結進來，而且人要在語音頻道裡才能控制
-    任何模式下，"更換 Bilibili 帳號"都只限機器人擁有者／本地
+    """看板存取模式（DASHBOARD_ACCESS），入口一律是 /help 給的專屬連結
+    verify（預設）：輸入 /help，點它給你的專屬連結（點一下就自動綁定，不用輸入任何碼）
+                    之後可以控制所有頻道，顯示真實的 Discord 暱稱，主機會記住這個瀏覽器
+    voice：同樣用 /help 的專屬連結進來，而且人要在語音頻道裡才能控制
+    在執行機器人的這台電腦上直接開 localhost 一律視為主人；"更換 Bilibili 帳號"只限機器人擁有者／本機
+    2.0 起沒有 open 模式（知道網址就能控制）；.env 還寫著 open 的話會當成 verify
 
-    Dashboard access mode (``DASHBOARD_ACCESS``):
-      * open (default) - anyone who knows the URL can control every channel; only for trusted networks.
-      * verify         - confirm identity through Discord first: type /help and open the personal link
-                         (one click auto-binds the browser, nothing to type). Verified members can control all
-                         channels and show their real Discord nickname; the host remembers their devices.
-                         Recommended when the dashboard is exposed to the public internet.
-      * voice          - everyone uses their own /help link AND must be in a voice channel to control playback.
-    In every mode, switching the Bilibili account is limited to the bot owner / the local machine.
+    Dashboard access mode (``DASHBOARD_ACCESS``). The way in is always the personal link that /help hands out.
+      * verify (default) - type /help and open your personal link (one click binds the browser, nothing to type).
+                           After that you can control all channels, your real Discord nickname is shown and the host
+                           remembers this browser.
+      * voice            - the same /help link, AND you must be in a voice channel to control playback.
+    Opening localhost on the machine that runs the bot always counts as the owner; switching the Bilibili account is
+    limited to the bot owner / the local machine.
+    Since 2.0 there is no "open" mode (anyone who knew the URL could control). An .env that still says open is treated as verify.
     """
-    mode = os.environ.get("DASHBOARD_ACCESS", "open").strip().lower()
-    return mode if mode in ("open", "verify", "voice") else "open"
-
-
-def dashboard_open() -> bool:
-    """是否為 open 模式 / True when the access mode is "open"."""
-    return dashboard_mode() == "open"
+    mode = os.environ.get("DASHBOARD_ACCESS", "verify").strip().lower()
+    if mode == "open":
+        log.warning("DASHBOARD_ACCESS=open 在 2.0 已經移除，改用 verify（請從 Discord 的 /help 連結進看板）")
+    return mode if mode in ("verify", "voice") else "verify"
 
 
 def dashboard_secret() -> str:

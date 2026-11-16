@@ -9,7 +9,7 @@ import logging
 
 from .. import auth, params
 from ..hub import Hub, UserCtx
-from .session import Emit, Session, clean_name
+from .session import Emit, Session
 
 log = logging.getLogger("musicbot")
 
@@ -35,8 +35,7 @@ class DashboardCore:
         False through the relay). ``token`` = the link token signed by /help; ``device`` = the device token
         the host remembered after verification.
 
-        Order of checks / 檢查順序: link token -> remembered device -> local owner -> guest (open mode)
-        -> pending (verify mode) -> refused.
+        Order of checks / 檢查順序: link token -> remembered device -> local owner -> pending (verify mode) -> refused.
         """
         hub = self.hub
         if token:
@@ -55,8 +54,6 @@ class DashboardCore:
                 hub.members.revoke_user(uid)   # 已經不在伺服器裡了：撤銷 / no longer in the server: revoke
         if is_local:
             return hub.host_ctx()
-        if hub.mode == "open":                 # 開放模式：知道網址就能用（訪客，沒有擁有者權限）/ open mode: knowing the URL is enough (guest, no owner rights)
-            return hub.guest_ctx(clean_name(name))
         if hub.mode == "verify":               # 驗證模式：先去驗證，什麼都不能做 / verify mode: must verify first, nothing can be done meanwhile
             return hub.pending_ctx()
         return None
@@ -131,10 +128,46 @@ class DashboardCore:
             sess.bili_task = asyncio.create_task(self.hub.bili_login_flow(lambda m: self._safe_emit(sess, m)))
         elif t == "bili_login_cancel":
             self._cancel_bili(sess)
+        elif isinstance(t, str) and t.startswith("lib_"):      # 我的歌單 / the library
+            asyncio.create_task(self._run_library(sess, data))
+        elif isinstance(t, str) and t.startswith("sp_"):       # Spotify 帳號 / the Spotify account
+            asyncio.create_task(self._run_spotify(sess, data))
         else:
             # 每個操作各自跑，避免一個慢的解析卡住其他拖曳操作
             # Each action runs on its own so one slow lookup can't block other drag-and-drop actions.
             asyncio.create_task(self._run_action(sess, data))
+
+    async def _run_library(self, sess: Session, data: dict) -> None:
+        """執行一個歌單操作：提示給這個瀏覽器，新的歌單樹也只回給它；播放歌單會讓待播清單變動，所以通知大家更新
+
+        Run one library action: the toast and the new tree go to this browser only; playing changes the queue, so everyone is told to refresh.
+        """
+        try:
+            note, reply = await self.hub.library_action(sess.gid, sess.ctx, sess.pid, data)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("歌單操作失敗：%s", data.get("type"))
+            note, reply = f"操作失敗：{str(exc)[:120]}", None
+        if note:
+            await self._safe_emit(sess, {"type": "toast", "text": note})
+        if reply:
+            await self._safe_emit(sess, reply)
+        if data.get("type") == "lib_play":
+            self.broadcast(sess.gid)
+
+    async def _run_spotify(self, sess: Session, data: dict) -> None:
+        """執行一個 Spotify 操作：提示和結果只回給這個瀏覽器（憑證留在這台電腦）
+
+        Run one Spotify action: the toast and the result go to this browser only (the tokens stay on this machine).
+        """
+        try:
+            note, reply = await self.hub.spotify_action(sess.ctx, data)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("Spotify 操作失敗：%s", data.get("type"))
+            note, reply = f"操作失敗：{str(exc)[:120]}", None
+        if note:
+            await self._safe_emit(sess, {"type": "toast", "text": note})
+        if reply:
+            await self._safe_emit(sess, reply)
 
     @staticmethod
     def _cancel_bili(sess: Session) -> None:

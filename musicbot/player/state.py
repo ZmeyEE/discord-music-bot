@@ -49,6 +49,8 @@ class GuildState:
     current: Track | None = None                              # 正在播放的曲目 / the current track
     stream: Stream | None = None                              # 它的串流（載入中為 None）/ its stream (None while loading)
     bitrate_kbps: int = 0
+    scope: dict | None = None            # 資料夾循環：{mode: folder|folders, user, node, name, avatar}；待播清單播完就再放一輪 / folder loop: when the queue runs out another round is added
+    direct: bool = False                                      # 這首是不是直通（來源是 Opus，沒有重新編碼）/ is this song sent direct (an Opus source, not re-encoded)
     loop: str = "off"
     text_channel_id: int | None = None                        # 公告要發到哪個文字頻道 / text channel for announcements
     last_voice_id: int | None = None

@@ -15,7 +15,9 @@
      最底層 lowest layer  util.js 小工具 · store.js 共用狀態 · dom.js 常用節點
      畫面零件 pieces      effects.js 撕裂特效 · cards.js 待播卡片 · now.js 正在播放 · seek.js 進度條
      功能 features        dragdrop.js 拖曳 · controls.js 其他控制 · add.js 加歌 · tabs.js 分頁 · perms.js 權限 · bili.js Bilibili 帳號
-     清單視窗 window      queuewindow.js 只載入前面一段、往下捲再要、沒變就不重送
+     清單視窗 window      queuewindow.js 只載入前面一段、往下捲再要、沒變就不重送 · virtuallist.js 只畫看得到的卡片
+     我的歌單 library     library.js 視窗與卡片 · libsongs.js 歌曲列 · libdialogs.js 小視窗 · selection.js 待播清單的選取與加入歌單
+     Spotify spotify.js 帳號連結 · libspotify.js 自己的 Spotify 歌單
      組合 assembly        render.js 把快照畫到畫面 · net.js WebSocket 連線 · picker.js 沒指定伺服器時的選單
    從下往上讀：先看底層，再看零件，最後看 render.js 怎麼把它們串起來
    Read from the bottom up: the lowest layer first, then the pieces, and finally how render.js ties them together.
@@ -24,8 +26,11 @@ import "./add.js";
 import "./bili.js";
 import "./controls.js";
 import "./dragdrop.js";
+import "./library.js";
 import "./perms.js";
 import "./render.js";
+import "./selection.js";
+import "./spotify.js";
 import "./tabs.js";
 import { connect } from "./net.js";
 import { gid } from "./store.js";

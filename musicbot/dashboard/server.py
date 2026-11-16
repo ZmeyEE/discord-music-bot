@@ -45,6 +45,7 @@ class Dashboard:
         app.router.add_get("/", self.index)
         app.router.add_get("/g/{gid:\\d+}", self.index)
         app.router.add_get("/api/guilds", self.guilds)
+        app.router.add_get("/spotify/callback", self.spotify_callback)
         app.router.add_get("/ws/{gid:\\d+}", self.ws)
         app.router.add_static("/static/", self.web_dir, follow_symlinks=False)
         self._runner = web.AppRunner(app, access_log=None)
@@ -85,9 +86,22 @@ class Dashboard:
         """回傳看板網頁 / Serve the dashboard page."""
         return web.FileResponse(self.web_dir / "index.html")
 
+    async def spotify_callback(self, request: web.Request) -> web.Response:
+        """Spotify 授權完導回來的頁面：什麼都不處理，只告訴使用者把網址貼回看板（這樣本機和朋友的電腦流程一樣）
+
+        The page Spotify sends the browser back to. It processes nothing and only tells the user to paste this address back into the dashboard
+        (so the local machine and a friend's computer follow the same flow).
+        """
+        return web.Response(text="<!doctype html><meta charset=utf-8><title>Spotify</title>"
+                                 "<body style=\"font-family:sans-serif;max-width:32em;margin:3em auto;padding:0 1em\">"
+                                 "<h2>已經授權了 / Authorised</h2>"
+                                 "<p>請把這個頁面<b>網址列的整段網址</b>複製起來，貼回音樂看板的 Spotify 視窗。</p>"
+                                 "<p>Copy the <b>whole address</b> from this page's address bar and paste it back into the Spotify window of the dashboard.</p></body>",
+                            content_type="text/html")
+
     async def guilds(self, request: web.Request) -> web.Response:
-        """伺服器清單：開放模式或本地才給 / The server list: only in open mode or from the local machine."""
-        if not (self.hub.open_access or self._is_local(request)):
+        """伺服器清單：只有本機才給 / The server list: only for the local machine."""
+        if not self._is_local(request):
             raise web.HTTPForbidden(text="只有本機可以列出伺服器")
         return web.json_response(self.hub.guild_list())
 

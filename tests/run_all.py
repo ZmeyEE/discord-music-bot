@@ -21,17 +21,20 @@ NOWIN = getattr(subprocess, "CREATE_NO_WINDOW", 0)     # Windows 上不要彈出
 # Suites that run against the harness: (script, DASHBOARD_ACCESS mode, extra env)
 SUITES = [
     ("hub_test.py", "voice", {}),
-    ("open_test.py", "open", {"N_WORKERS": "2"}),
-    ("loop_test.py", "open", {"N_WORKERS": "2", "FAKE_SECS": "7"}),
-    ("seek_test.py", "open", {}),
-    ("quality_test.py", "open", {}),
+    ("link_test.py", "verify", {"N_WORKERS": "2"}),
+    ("loop_test.py", "verify", {"N_WORKERS": "2", "FAKE_SECS": "7"}),
+    ("seek_test.py", "verify", {}),
+    ("quality_test.py", "verify", {}),
     ("verify_test.py", "verify", {}),
-    ("health_test.py", "open", {}),
+    ("health_test.py", "verify", {}),
     ("avatar_test.py", "verify", {}),
-    ("window_test.py", "open", {}),
+    ("window_test.py", "verify", {}),
+    ("library_test.py", "verify", {}),
+    ("library_ui.py", "verify", {"SPOTIFY_CLIENT_ID": "testclient", "FAKE_SPOTIFY": "1"}),
+    ("perf_ui.py", "verify", {}),
 ]
 # 自己就能跑的（不需要 harness）/ Self-contained (no harness needed)
-STANDALONE = ["health_unit.py", "harden_test.py", "recover_unit.py", "source_unit.py", "launcher_unit.py", "window_unit.py", "notice_unit.py"]
+STANDALONE = ["health_unit.py", "harden_test.py", "recover_unit.py", "source_unit.py", "launcher_unit.py", "window_unit.py", "notice_unit.py", "audio_unit.py", "library_unit.py", "spotify_unit.py"]
 
 
 def stop(p):

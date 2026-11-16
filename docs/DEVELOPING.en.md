@@ -4,7 +4,7 @@ A free Discord music bot that runs on your own PC, Bilibili first, best audio qu
 This page is for people who want to change it: new language, new colors, better audio, or reuse the UI somewhere else
 (中文版在 [DEVELOPING.zh-TW.md](DEVELOPING.zh-TW.md))
 
-Version: **1.2.0** · License: [Unlicense](../LICENSE) (public domain, do whatever you want) · Third-party list: [THIRD_PARTY.md](../THIRD_PARTY.md)
+Version: **2.0.0** · License: [Unlicense](../LICENSE) (public domain, do whatever you want) · Third-party list: [THIRD_PARTY.md](../THIRD_PARTY.md)
 
 ## 1. Map of the project
 
@@ -23,8 +23,11 @@ musicbot/
     tracks.py recognize.py resolve.py spotify.py match.py stream.py
   player/              one Discord bot account = one PlayerBot
     state.py voice.py playback.py recover.py enqueue.py controls.py snapshot.py bot.py
+    audio.py           audio pipeline: Opus sources go direct, others are re-encoded with quality-first settings (see the file header)
   hub/                 the brain: who may control, which bot plays, snapshots, actions
-    models.py identity.py routing.py streams.py snapshot.py actions.py bili.py core.py
+    models.py identity.py routing.py streams.py snapshot.py actions.py bili.py library.py spotify.py core.py
+  library/             My playlists: tree.py pure folder-tree functions, store.py persistence (library.json)
+  spotify/             Spotify account link: client.py official API (authorisation code + PKCE), accounts.py token storage
   health/              stutter detector, stops channels (newest first) when the PC can't keep up
     probe.py ledger.py monitor.py
   commands/            slash commands (/play /help /quality ...)
@@ -193,3 +196,27 @@ Ideas:
 - Comments in two languages (中文 / English), short and friendly, explain **why**, not only what
 - Chinese comments follow the project style: commas and straight quotes, no corner brackets and no full stops
 - Small functions, one job each, a docstring for every function
+
+## 11. Capacity: how many clone bots one machine can run with 50 queued cards per channel
+
+Measured on 2026-11-17 on an i5-12400F (6 cores / 12 threads) with 31.8 GB of RAM (the ffmpeg numbers were measured now; the Python numbers come from the earlier 120-channel stress test)
+
+| Item | Cost of one channel | Limit of this machine (with headroom) |
+| --- | --- | --- |
+| ffmpeg re-encode (Bilibili AAC → Opus 256k, soxr) | about 1.0% (alone) to 1.4% (24 at once) of a core | about 400 (70% of 8 threads) |
+| ffmpeg direct copy (YouTube Opus) | about 0.03% to 0.1% of a core | practically no limit |
+| ffmpeg memory | about 22 MB | — |
+| other memory of a channel (voice connection + 50 queued songs) | about 3 MB (50 songs < 0.1 MB) | about 26 MB × N in total, roughly 880 channels after reserving 8 GB for the system |
+| Python main process (one packet every 20 ms, one core shared by all channels because of the GIL) | about 0.25% of a core (120 channels measured at 30%, no late packets) | **the real ceiling**: about 240 channels at 60% |
+| upload | about 64–256 kbps per channel in practice (limited by the channel bitrate) | 150 channels × 192 kbps ≈ 29 Mbps |
+| dashboard | a 50-card snapshot is about 14 KB (29 KB at most), sent only to whoever is watching; rendering < 5 ms | not a limit |
+
+**Conclusion**: this machine can play about **150 channels at once safely and about 240 at most** (beyond that the stutter detector stops the most recently added channels first).
+
+**How many bot accounts**: one Discord bot account can sit in one voice channel per server, so
+`accounts needed = the largest number of channels playing at once in any single server` (including the main bot).
+- 150 channels spread over 30 servers with at most 5 playing per server → **6 accounts** (the main bot + 5 clones)
+- 150 channels all in one server → 150 accounts (not realistic; no server has that many voice channels)
+- an unverified bot account may join 100 servers, so with many servers the same clones are reused
+
+**When to measure again**: a different CPU, mostly non-Bilibili re-encoded sources, or re-encoding at 510k: redo the stress test and the ffmpeg measurement of this section.

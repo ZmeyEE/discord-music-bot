@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import shlex
 import time
 from typing import TYPE_CHECKING
 
@@ -16,7 +15,7 @@ from .. import params
 from ..config import target_bitrate
 from ..health import StreamProbe, probe_source
 from ..sources import Stream, Track, extract_stream_for
-from .state import ffmpeg_stderr
+from . import audio
 
 if TYPE_CHECKING:
     pass
@@ -71,7 +70,7 @@ class PlaybackMixin:
                     await self._say(
                         st,
                         f"正在播放：**{track.title}**{matched}\n"
-                        f"來源音質 `{stream.quality}` → 傳送 `Opus {bitrate}kbps`",
+                        f"來源音質 `{stream.quality}` → 傳送 `{'原始音軌直通（不重新編碼）' if st.direct else f'Opus {bitrate}kbps'}`",
                     )
                 break
 
@@ -85,18 +84,17 @@ class PlaybackMixin:
         """
         st = self.state(guild.id)
         bitrate = target_bitrate(vc.channel.bitrate // 1000, guild.id)
-        header_blob = "".join(f"{k}: {v}\r\n" for k, v in stream.headers.items())
-        seek = f"-ss {offset:.2f} " if offset > 0 else ""   # -ss 放在 -i 之前 = 快速跳轉 / -ss before -i = fast seek
-        before = (
-            f"{seek}-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 "   # 網路斷線時自動重連 / auto-reconnect on network hiccups
-            f"-headers {shlex.quote(header_blob)}"
-        )
-        # codec 不給 -> discord.py 以 libopus 重新編碼
-        # No codec given -> discord.py re-encodes with libopus at the bitrate we pass.
-        source = discord.FFmpegOpusAudio(
-            stream.url, bitrate=bitrate, executable=self.ffmpeg, before_options=before,
-            options="-vn", stderr=ffmpeg_stderr(),
-        )
+
+        def fell_back() -> None:
+            """（播放執行緒）直通中途改成重編：更新顯示 / (Player thread) direct playback switched to re-encoding: update what is shown."""
+            st.direct, st.bitrate_kbps = False, bitrate
+            self.loop.call_soon_threadsafe(self.notify, guild.id)
+
+        # 來源是 Opus 就直通（零損失），否則用音質優先的參數重編一次，細節見 audio.py
+        # An Opus source goes direct (zero loss); anything else is re-encoded once with quality-first settings, see audio.py.
+        source, st.direct = audio.build(stream, bitrate, offset, self.ffmpeg, fell_back)
+        if st.direct:
+            bitrate = round(stream.abr) or bitrate
         st.probe = StreamProbe()
         source = probe_source(source, st.probe)     # 只多量測送包時間，內容不變 / only adds packet-timing measurement, content unchanged
         st.current, st.stream, st.bitrate_kbps = track, stream, bitrate
@@ -113,12 +111,26 @@ class PlaybackMixin:
 
         vc.play(source, after=after)
         log.info(
-            "[%s] 播放%s：%s | 來源音質 %s -> Opus %dkbps（頻道設定 %dkbps）",
-            self.label, f"（從 {offset:.0f}s）" if offset else "", stream.title, stream.quality, bitrate,
-            vc.channel.bitrate // 1000,
+            "[%s] 播放%s：%s | 來源音質 %s -> %s（頻道設定 %dkbps）",
+            self.label, f"（從 {offset:.0f}s）" if offset else "", stream.title, stream.quality,
+            "直通，不重新編碼" if st.direct else f"Opus {bitrate}kbps", vc.channel.bitrate // 1000,
         )
         asyncio.create_task(self._voice_check(guild, track.id))
         return bitrate
+
+    def _refill_scope(self, guild: discord.Guild, st) -> None:
+        """資料夾循環：待播清單空了就再放一輪（同一個資料夾，或同一層的下一個資料夾）
+
+        Folder loop: when the queue is empty, add another round (the same folder, or the next folder on the same level).
+        """
+        if not st.scope or st.queue:
+            return
+        songs = self.hub.library_refill(st.scope)
+        if not songs:
+            st.scope = None                  # 資料夾已經被刪掉或空了：不再循環 / the folder is gone or empty: stop looping
+            return
+        st.queue.extend(self.tracks_from_songs(songs[: params.MAX_QUEUE], st.scope["name"], st.scope["avatar"]))
+        self.notify(guild.id)
 
     async def on_track_end(self, guild: discord.Guild, err: Exception | None) -> None:
         """一首歌結束（或被跳過／跳轉）後的善後：處理循環、跳轉，然後播下一首
@@ -167,5 +179,6 @@ class PlaybackMixin:
                 st.queue.append(track)
             elif st.loop == "single" and healthy and not skipped and err is None:
                 st.queue.appendleft(track)
+        self._refill_scope(guild, st)
         await self.ensure_playing(guild)
         self.notify(guild.id)

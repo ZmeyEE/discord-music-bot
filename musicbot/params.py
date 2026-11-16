@@ -37,7 +37,7 @@ DEFAULT_BITRATE_KBPS = 192                    # 沒有任何設定時的預設�
 MAX_PLAYLIST = 5000        # 合集／播放清單一次最多加入幾首 / max tracks taken from one playlist
 MAX_QUEUE = 5000           # ENV  一個伺服器的待播清單最多幾首 / max songs in one server's queue
 QUEUE_PAGE = 100         # 看板一開始畫幾張待播卡片，往下捲每次再多載入這麼多 / queued cards the dashboard draws at first, and how many more each scroll loads
-QUEUE_VIEW = 1000        # 一個瀏覽器最多能載入幾張（捲到底的上限）；清單沒變時不會重送，所以這個數字只影響捲很遠的人 / the most cards one browser may load by scrolling; an unchanged list is never re-sent, so this only matters to people who scroll far
+QUEUE_VIEW = 5000          # 一個瀏覽器最多載入幾首（網頁只畫看得到的那幾十張，所以多載入不會變慢）/ most songs one browser may load (the page draws only the few dozen in view, so loading more costs nothing at draw time)
 SEARCH_CACHE_TTL = 600  # 秒；相同關鍵字短時間內不要重複打站方 API / seconds; don't hit the site's API again for the same keywords
 ENRICH_FIRST = 50        # 加歌時先補幾首的縮圖與標題 / how many songs get their thumbnail and title filled right when added
 ENRICH_AHEAD = 10        # 開始播一首時，往後再補幾首 / when a song starts, how many following songs are filled
@@ -46,9 +46,47 @@ ENRICH_PARALLEL = 3      # 同時補幾首（太多會被站方限流）/ how ma
 # =====================================================================
 # 3. Spotify 對應歌曲 / Spotify song matching
 # =====================================================================
-MATCH_CANDIDATES = 5            # 搜尋時看前幾筆 / how many search hits are considered
+MATCH_CANDIDATES = 8            # 每個站搜尋時看前幾筆 / how many search hits per site are considered
+MATCH_PROBE = 3                 # 每個站最多實際去取幾支影片的串流來比音質（每支約 1 秒）/ how many videos per site are really fetched to compare quality (about 1 s each)
+MATCH_GOOD_SCORE = 180.0        # 音質分數到這裡就算夠好，不再找下一個站（AAC 192k = 192，Opus 139k = 181）/ a quality score this high is good enough and the next site is skipped (AAC 192k = 192, Opus 139k = 181)
+MATCH_OPUS_WEIGHT = 1.3         # Opus 同位元率比 AAC 好，比較時乘上這個 / Opus sounds better than AAC at the same bitrate; its bitrate is multiplied by this when comparing
+MATCH_LOSSLESS_SCORE = 10000.0  # 無損音軌的分數（一定贏）/ the score of a lossless track (always wins)
+# 標題有這些字的影片不要（除非原曲名自己就有）：循環版、合集、倍速、翻唱、伴奏、現場…
+# Videos whose title has one of these are skipped (unless the song's own title has it): loop versions, compilations, sped up, covers, instrumentals, live...
+MATCH_SKIP_WORDS = (
+    r"伴奏|纯音乐|純音樂|instrumental|karaoke|翻唱|cover|remix|reverb|nightcore|8d|sped ?up|slowed|"
+    r"循环|循環|loop|小时|小時|\d+ ?hours?|合集|合輯|串烧|串燒|歌单|歌單|倍速|变速|變速|\d\.\d+ ?x|dj|"
+    r"live|现场|現場|演唱会|演唱會|concert|铃声|鈴聲|片段|试听|試聽|reaction"
+)
 MATCH_TOLERANCE_SECONDS = 6.0   # 長度差在這幾秒內算同一首 / a duration gap within this many seconds is the same song
 MATCH_TOLERANCE_RATIO = 0.05    # 或差在原曲長度的這個比例內（兩者取大）/ or within this share of the song length (the larger of the two wins)
+
+# =====================================================================
+# 3b. 送進 Discord 的音質 / The audio sent to Discord
+# =====================================================================
+OPUS_DIRECT = 1          # 1 = 來源本身是 Opus（YouTube）就原封不動送出去，不重新編碼，零損失；0 = 一律重編 / 1 = an Opus source (YouTube) is sent untouched with no re-encoding and zero loss; 0 = always re-encode
+RESAMPLER = "soxr"       # 44.1 kHz 的來源要轉成 Discord 的 48 kHz，soxr 是品質最好的轉換器；ffmpeg 沒有內建它就自動用預設的，留空字串 = 一律用預設
+                         # 44.1 kHz sources must be converted to Discord's 48 kHz and soxr is the best converter; when the ffmpeg build lacks it the default is used. Empty string = always the default
+OPUS_PACKET_LOSS = 0     # 重編時告訴編碼器"預期掉包幾 %"：0 = 音質優先；discord.py 內建是 15，會明顯犧牲音質（實測 256k：16 dB -> 24 dB）
+                         # the "expected packet loss %" given to the encoder when re-encoding: 0 = quality first. discord.py's own value is 15, which clearly costs quality (measured at 256k: 16 dB -> 24 dB)
+
+# =====================================================================
+# 3c. 我的歌單（每位 Discord 使用者自己的資料夾與歌單）/ My library (each Discord user's own folders and playlists)
+# =====================================================================
+LIB_NAME_MAX = 40          # 資料夾／歌單名稱最多幾個字 / longest folder / playlist name
+LIB_MAX_DEPTH = 8          # 資料夾最多巢狀幾層 / how deep folders may nest
+LIB_MAX_SONGS = 20000      # 一個人最多存幾首（約 4 MB）/ most songs one person may store (about 4 MB)
+LIB_MAX_NODES = 2000       # 一個人最多幾個資料夾＋歌單 / most folders + playlists one person may have
+LIB_SONGS_PER_SEND = 300   # 打開一張歌單時，一次送給網頁幾首（其餘往下捲再要）/ how many songs of an opened playlist are sent at once (the rest on scroll)
+
+# =====================================================================
+# 3d. Spotify 帳號連結（讀自己的歌單）/ Spotify account link (reading one's own playlists)
+# =====================================================================
+SPOTIFY_TIMEOUT = 20.0         # 問 Spotify 一次最多等幾秒 / seconds to wait for one Spotify request
+SPOTIFY_PAGE = 50              # 一次向 Spotify 要幾筆（歌單清單）/ items per request when listing playlists
+SPOTIFY_MAX_PLAYLISTS = 300    # 最多列出幾張歌單 / most playlists listed
+SPOTIFY_MAX_SONGS = 5000       # 一張歌單最多匯入幾首 / most songs imported from one playlist
+SPOTIFY_PENDING_SECONDS = 600  # 授權流程從按下"前往授權"到貼回網址的時限 / how long the authorisation may take, from the link to pasting the address back
 
 # =====================================================================
 # 4. 語音與閒置離開 / Voice and idle auto-leave

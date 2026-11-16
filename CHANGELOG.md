@@ -3,6 +3,22 @@
 格式參考 [Keep a Changelog](https://keepachangelog.com/)，版本號遵循 [SemVer](https://semver.org/lang/zh-TW/)
 Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [SemVer](https://semver.org/)
 
+## [2.0.0] - 2026-11-17
+
+### 重大變更 / Breaking
+- **入口只剩 `/help` 的專屬連結**：移除"知道網址就能控制"的 `open` 模式（`DASHBOARD_ACCESS` 只剩 `verify`（預設）和 `voice`；舊 `.env` 寫 `open` 會自動當成 `verify` 並在記錄裡提醒）。中繼站不再公開伺服器清單。本機直接開 localhost 仍是主人 / **the personal link from `/help` is the only way in**: the `open` mode (knowing the URL was enough) is gone; `DASHBOARD_ACCESS` is now `verify` (default) or `voice`, an old `.env` saying `open` is treated as `verify` with a warning in the log. The relay no longer lists servers. Opening localhost on the bot's machine is still the owner
+
+### 新增 / Added
+- **我的歌單**：每位 Discord 使用者自己的資料夾與歌單（存連結，不存聲音，存在這台電腦的 `library.json`）。資料夾可以巢狀（最多 8 層）；多選待播歌曲存成歌單、多選歌單建立資料夾、改名、搬移、刪除；貼 Bilibili／YouTube／Spotify 連結直接存入；每張待播卡片右上角有"加入歌單"；開啟有動畫，卡片是歌單／資料夾樣式 / **My playlists**: each Discord user's own folders and playlists (links, not audio, stored in `library.json` on this machine). Folders nest (up to 8 levels); select queued songs to save a playlist, select playlists to make a folder, rename, move, delete; paste a Bilibili / YouTube / Spotify link to save it; every queued card has an "add to a playlist" button; opening has an animation and playlists / folders are cards
+- **資料夾循環與跨資料夾循環**：播放資料夾時可選"播完重播這個資料夾"或"播完換同一層的下一個資料夾（到底繞回第一個）"；清空待播或停止就結束循環 / **folder loop and loop across folders**: playing a folder can replay it when it ends, or move on to the next folder on the same level (wrapping around); clearing the queue or stopping ends the loop
+- **Spotify 帳號連結**（Bilibili 按鈕上方）：連結後可以列出自己的 Spotify 歌單並存進我的歌單；用授權碼 + PKCE（不需要 Client Secret），授權完把網址貼回看板，所以朋友經過中繼站也能用。需要 `.env` 的 `SPOTIFY_CLIENT_ID`。**限制**：Spotify 開發模式要擁有者有 Premium、最多 5 位使用者、只讀得到自己建立或共同編輯的歌單；**這部分只用假的 Spotify 回應測過，還沒有用真的 Premium 帳號驗證** / **Spotify account link** (above the Bilibili button): once linked, one's own Spotify playlists can be listed and saved into My playlists; authorisation code + PKCE (no client secret), and the address is pasted back into the dashboard so friends can use it through the relay. Needs `SPOTIFY_CLIENT_ID` in `.env`. **Limits**: Spotify Development Mode needs a Premium owner, allows 5 users and only reads playlists the user owns or collaborates on; **this was tested only with fake Spotify answers, not yet against a real Premium account**
+- **音質**：來源本身是 Opus（YouTube）就原封不動送進 Discord（不重新編碼，逐位元相同）；Bilibili 的 AAC 重編時不再讓 discord.py 假設 15% 掉包（實測 256k 時波形相似度 16 dB → 24 dB），有 soxr 就用它轉 44.1→48 kHz；看板顯示"直通"或實際位元率 / **audio quality**: an Opus source (YouTube) goes into Discord untouched (bit-exact, no re-encoding); Bilibili's AAC is re-encoded without discord.py's assumed 15% packet loss (measured waveform similarity 16 dB → 24 dB at 256k) and with soxr when available for 44.1 → 48 kHz; the dashboard shows "direct" or the real bitrate
+- **Spotify 歌曲找對應影片更準**：真的取串流看實際長度（過濾掉 42 分鐘的循環版）、比音質、記住挑到的影片；"你 - 鄭潤澤"以前挑到 68 kbps 的循環版，現在是 4:27 的 Opus 139 kbps / **better matching of Spotify songs to videos**: the true length is checked (a 42-minute loop version is filtered out), quality is compared and the pick is remembered; "你 - 鄭潤澤" used to land on a 68 kbps loop version and is now the 4:27 Opus 139 kbps one
+- **虛擬清單**：待播清單只畫看得到的卡片，2500 張時捲動和拖曳排序都是 60 fps、刪除一張約 75 毫秒（以前 1000 張就會卡）；一個瀏覽器最多載入 5000 首，往下捲時每次載入量倍增 / **virtual list**: the queue draws only the cards in view; with 2500 cards scrolling and drag-reordering run at 60 fps and a delete takes about 75 ms (1000 cards used to lag); a browser may load up to 5000 songs and each load on scroll doubles
+
+### 測試 / Tests
+- 新增 `perf_ui.py`（無頭 Chrome 量 2500 張卡片的 fps）、`library_ui.py`（歌單介面，含假 Spotify）、`library_test.py`、`library_unit.py`、`spotify_unit.py`、`audio_unit.py`、`link_test.py`（取代 `open_test.py`）/ added `perf_ui.py` (headless Chrome measures fps with 2500 cards), `library_ui.py` (the library screens, with a fake Spotify), `library_test.py`, `library_unit.py`, `spotify_unit.py`, `audio_unit.py` and `link_test.py` (replaces `open_test.py`)
+
 ## [1.2.0] - 2026-11-16
 
 ### 修正 / Fixes

@@ -25,6 +25,21 @@ The only place where someone else's source is copied into the repo; please keep 
 | --- | --- | --- |
 | `web/vendor/Sortable.min.js` | [SortableJS](https://github.com/SortableJS/Sortable) 1.15.6 | MIT |
 
+## 2b. 2.0 用到的技術與服務（沒有放進原始碼）/ Techniques and services used by 2.0 (no source copied)
+
+2.0 新增的功能**沒有新增任何第三方套件，也沒有複製別人的原始碼**，下面這些是依公開規格或常見做法自己寫的，列在這裡讓你知道出處
+2.0's new features add **no third-party packages and copy no one else's source**. The following were written by us from public specifications or well-known techniques, listed here so you know where they come from.
+
+| 項目 / Item | 我們怎麼用 / How we use it | 出處與授權 / Source and license |
+| --- | --- | --- |
+| 虛擬清單（windowing）/ virtual list | `web/js/virtuallist.js`：只畫看得到的卡片，上下用空白撐高度 / draws only the visible cards, spacers hold the height | 常見做法（例如 [react-window](https://github.com/bvaughn/react-window) 的概念），自己用原生 JS 寫，沒有複製其程式碼 / a well-known technique (the idea behind e.g. react-window), written by us in vanilla JS, no code copied |
+| 拖曳排序 / drag reorder | 沿用 SortableJS，並設 `draggable: ".card"` 讓空白不能拖 / SortableJS as before, with `draggable: ".card"` so spacers can't be dragged | SortableJS 1.15.6，MIT（`web/vendor/`，見上面第 2 節）/ MIT (see section 2 above) |
+| OAuth 授權碼 + PKCE | `musicbot/spotify/client.py` | [RFC 7636](https://www.rfc-editor.org/rfc/rfc7636) 與 [Spotify 授權文件](https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow)，自己實作 / our own implementation of the RFC and Spotify's documentation |
+| Spotify Web API | 讀使用者自己的歌單 / read the user's own playlists | 使用須遵守 [Spotify 開發者條款](https://developer.spotify.com/terms)；只讀、不存歌曲音訊 / subject to Spotify's developer terms; read-only and no audio is stored |
+| Opus 封包格式 / Opus packet format | `musicbot/player/audio.py` 讀封包第一個位元組判斷是不是 Discord 能送的 20 毫秒單框 / reads the first byte of a packet to check it is a 20 ms single frame Discord can carry | [RFC 6716](https://www.rfc-editor.org/rfc/rfc6716)，自己實作 / our own implementation |
+| libopus、soxr（經由 FFmpeg）/ libopus and soxr (through FFmpeg) | 重編 Opus 與 44.1 → 48 kHz 取樣率轉換 / re-encoding to Opus and 44.1 → 48 kHz resampling | BSD-3-Clause（libopus）、LGPL-2.1+（soxr），隨使用者自己安裝的 FFmpeg / BSD-3-Clause (libopus), LGPL-2.1+ (soxr), shipped with the FFmpeg the user installs |
+| Chrome DevTools Protocol | 只用在測試：`tests/cdp.py` 用無頭 Chrome／Edge 量 fps 與走過介面，不是執行機器人需要的 / tests only: `tests/cdp.py` drives headless Chrome / Edge to measure fps and walk the screens, not needed to run the bot | [協定文件 / protocol docs](https://chromedevtools.github.io/devtools-protocol/)，使用者自己電腦上的瀏覽器 / the browser already on the user's computer |
+
 ## 3. 外部程式（要自己安裝）/ External programs (install yourself)
 
 | 程式 / Program | 用途 / What we use it for | 授權 / License | 備註 / Notes |

@@ -30,6 +30,8 @@ export const S = {
   deferred: null,        // 拖曳中收到的最新快照，放開後再套用 / the newest snapshot received mid-drag, applied afterwards
   recvAt: 0,             // 收到快照的時間，用來在本地推算播放進度 / when the snapshot arrived, to extrapolate the position
   nowRefs: null,         // "正在播放"卡片裡常更新的節點 / nodes inside the now-playing card that are updated often
+  selecting: false,      // 待播清單是否在選取模式 / is the queue in select mode
+  selected: new Set(),   // 選取模式下勾選的曲目 id / track ids ticked in select mode
   handled: new Set(),    // 這次拖曳已處理過的卡片 / cards already handled in this drag
   token: urlToken || (() => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } })(),
   device: (() => { try { return localStorage.getItem(DEVICE_KEY); } catch { return null; } })(),

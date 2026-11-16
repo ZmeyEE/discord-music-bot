@@ -50,11 +50,11 @@ async def fake_worker(s, key, name):
 async def main():
     async with aiohttp.ClientSession() as s:
         # ===== 1. 基本轉送 =====
-        g1 = await Client(s, name="阿花").open()
+        g1 = await Client(s, token=await tok(s, 1001)).open()
         check("1a 瀏覽器經中繼站連上，收到來自家裡機器人的狀態", g1.st.get("guild", {}).get("name") == "測試伺服器", g1.err)
-        check("1b 開放模式：以訪客身分（不是主人）", g1.st["me"]["host"] is False and g1.st["me"]["can_control"] and g1.st["me"]["name"] == "阿花", g1.st["me"])
-        async with s.get(f"{RELAY}/api/guilds") as r: gl = await r.json()
-        check("1c /api/guilds 由中繼站回答（開放模式）", gl and gl[0]["name"] == "測試伺服器", gl)
+        check("1b 用 /help 連結的成員（不是主人）", g1.st["me"]["host"] is False and g1.st["me"]["can_control"] and g1.st["me"]["name"] == "小明", g1.st["me"])
+        async with s.get(f"{RELAY}/api/guilds") as r: gl = r.status
+        check("1c 中繼站不公開伺服器清單（2.0 起沒有開放模式，陌生人不能探測有哪些伺服器）", gl == 403, gl)
         async with s.get(f"{RELAY}/healthz") as r: hz = await r.json()
         check("1d /healthz 回報播放端在線", hz["worker_online"] is True and hz["browsers"] >= 1, hz)
         async with s.get(f"{RELAY}/") as r: check("1e 中繼站自己提供看板頁面", r.status == 200 and "音樂看板" in await r.text())
@@ -62,11 +62,11 @@ async def main():
         # ===== 2. 操作經中繼站送回家裡執行 =====
         await g1.send(type="add", query=BILI, channel="501")
         await g1.until(lambda st: st["current"] and not st["current"]["loading"], 60)
-        check("2a 經中繼站加歌：家裡的播放器真的開始播放", g1.st["channel"] == "放鬆休息" and g1.st["current"]["requester"] == "阿花", g1.st["channel"])
+        check("2a 經中繼站加歌：家裡的播放器真的開始播放", g1.st["channel"] == "放鬆休息" and g1.st["current"]["requester"] == "小明", g1.st["channel"])
         await g1.send(type="toggle_pause"); await g1.until(lambda st: st["paused"], 8)
         check("2b 經中繼站暫停", g1.st["paused"] is True)
         await g1.send(type="toggle_pause"); await asyncio.sleep(0.5)
-        g2 = await Client(s, name="阿強").open()
+        g2 = await Client(s, token=await tok(s, 1002)).open()
         await g1.send(type="loop", mode="single"); await g2.until(lambda st: st["loop"] == "single", 8)
         check("2c 一個瀏覽器的操作，另一個瀏覽器即時看到", g2.st["loop"] == "single")
 
@@ -100,7 +100,7 @@ async def main():
         check("6a 播放端斷線：瀏覽器收到明確的離線通知（而且連線沒被關掉）", g1.err and g1.err["code"] == "offline" and not g1.closed, g1.err)
         async with s.get(f"{RELAY}/healthz") as r: hz = await r.json()
         check("6b /healthz 回報離線，瀏覽器數量不變", hz["worker_online"] is False and hz["browsers"] >= 3, hz)
-        async with s.get(f"{RELAY}/api/guilds") as r: check("6c 離線時 /api/guilds 回空清單", await r.json() == [])
+        async with s.get(f"{RELAY}/api/guilds") as r: check("6c 離線時 /api/guilds 回空清單（沒有洩漏任何東西）", r.status == 200 and await r.json() == [], r.status)
         for c in (g1, g2, owner): await c.close()
     print(f"\n總結：{sum(res)}/{len(res)} 通過")
 asyncio.run(asyncio.wait_for(main(), 300))

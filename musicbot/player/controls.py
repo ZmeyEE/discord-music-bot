@@ -77,6 +77,7 @@ class ControlsMixin:
         """停止、清空待播並離開語音頻道（釋放這個分身） / Stop, clear the queue and leave voice (frees this clone)."""
         st = self.state(guild.id)
         st.queue.clear()
+        st.scope = None                  # 停止 = 也不再資料夾循環 / stopping also ends a folder loop
         st.current, st.stream, st.started_at, st.paused_at, st.probe = None, None, 0.0, None, None
         st.empty_since = st.idle_since = 0.0
         st.joined_at = 0.0
@@ -143,5 +144,7 @@ class ControlsMixin:
 
     def clear_queue(self, guild_id: int) -> None:
         """清空待播清單（不影響正在播的這首） / Clear the queue (the song currently playing is unaffected)."""
-        self.state(guild_id).queue.clear()
+        st = self.state(guild_id)
+        st.queue.clear()
+        st.scope = None                  # 清空 = 也不再資料夾循環 / clearing also ends a folder loop
         self.notify(guild_id)

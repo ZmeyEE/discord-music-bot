@@ -33,5 +33,5 @@ def extract_stream(url: str) -> Stream:
         headers.update(BILI_HEADERS)
     return Stream(
         info["url"], headers, info.get("title") or url, info.get("duration"), quality,
-        pick_thumb(info),
+        pick_thumb(info), codec=str(info.get("acodec") or ""), abr=float(abr or 0),
     )

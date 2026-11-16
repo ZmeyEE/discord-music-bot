@@ -1,0 +1,124 @@
+/* ==========================================================================
+   我的歌單的畫面：歌單／資料夾卡片、開啟動畫、歌曲列、選取模式、小視窗
+   The library screens: playlist / folder cards, the opening animation, song rows, select mode, small dialogs
+   顏色與字體沿用 style.css 的變數 / colours and fonts reuse the variables of style.css
+   ========================================================================== */
+
+/* ---- 佇列上的選取模式與"加入歌單" / select mode and "add to a playlist" on the queue ---- */
+.card .pick {
+  display: none; position: absolute; left: 6px; bottom: 6px; z-index: 2; width: 22px; height: 22px; border-radius: 7px;
+  border: 2px solid rgba(255, 255, 255, .95); background: rgba(51, 64, 94, .45); color: #fff; place-items: center;
+}
+.card .pick .i { width: 14px; height: 14px; opacity: 0; }
+.selecting .card .pick { display: grid; }
+.card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(95, 126, 174, .35); }
+.card.selected .pick { background: var(--accent); }
+.card.selected .pick .i { opacity: 1; }
+.selecting .card { cursor: pointer; }
+.sel-bar { display: none; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 10px; margin-bottom: 8px; border-radius: 14px; background: rgba(95, 126, 174, .14); font-size: .86rem; }
+.selecting .sel-bar { display: flex; }
+.sel-bar .count-text { flex: 1; min-width: 80px; color: var(--ink-2); }
+.sel-bar button { font-size: .82rem; padding: 6px 12px; }
+.tool-btn.on { background: var(--accent); color: #fff; }
+
+/* ---- 歌單視窗 / the library dialog ---- */
+.lib-dlg { width: min(94vw, 900px); }
+.lib-box { position: relative; width: 100%; height: min(86vh, 760px); padding: 0; gap: 0; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; }
+.lib-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px 8px; }
+.lib-head h2 { font-size: 1.1rem; flex: none; }
+.lib-crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; min-width: 0; flex: 1; font-size: .86rem; color: var(--ink-3); }
+.lib-crumbs button { border: 0; background: transparent; color: var(--ink-2); padding: 3px 6px; border-radius: 8px; cursor: pointer; font: inherit; max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-crumbs button:hover { background: rgba(95, 126, 174, .14); }
+.lib-crumbs button:last-child { color: var(--ink); font-weight: 800; }
+.lib-crumbs .sep { opacity: .5; }
+.lib-bar { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 18px 10px; border-bottom: 1px solid var(--line); }
+.lib-bar button { font-size: .84rem; padding: 7px 13px; }
+.lib-body { overflow-y: auto; padding: 14px 18px 18px; position: relative; }
+
+.lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
+.lib-card {
+  position: relative; display: grid; gap: 8px; padding: 10px; border-radius: 16px; background: var(--card); border: 1px solid var(--line);
+  box-shadow: 0 2px 8px rgba(84, 115, 159, .1); cursor: pointer; text-align: left; font: inherit; color: inherit;
+  transition: transform .15s, box-shadow .15s, border-color .15s;
+}
+.lib-card:hover { transform: translateY(-3px); box-shadow: 0 10px 22px rgba(84, 115, 159, .2); border-color: rgba(95, 126, 174, .4); }
+.lib-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(95, 126, 174, .4); }
+.lib-art { position: relative; aspect-ratio: 16 / 10; border-radius: 12px; overflow: hidden; display: grid; place-items: center; background: linear-gradient(135deg, var(--lavender), var(--rose)); color: rgba(255, 255, 255, .92); }
+.lib-art .i { width: 44px; height: 44px; }
+.lib-card.folder .lib-art { background: linear-gradient(135deg, #BFD0EA, #A9BEDF); }
+.lib-card.folder .lib-art::before { /* 資料夾的標籤耳朵 / the folder's tab */
+  content: ""; position: absolute; left: 12px; top: 0; width: 38%; height: 14px; border-radius: 0 0 10px 10px; background: rgba(255, 255, 255, .45);
+}
+.lib-mosaic { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; width: 100%; height: 100%; }
+.lib-mosaic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lib-mosaic.one { grid-template-columns: 1fr; }
+.lib-name { font-weight: 800; font-size: .94rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-sub { font-size: .78rem; color: var(--ink-3); margin-top: -4px; }
+.lib-act { position: absolute; top: 14px; right: 14px; display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
+.lib-card:hover .lib-act, .lib-card:focus-within .lib-act { opacity: 1; }
+.lib-act button { width: 28px; height: 28px; border: 0; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .92); color: var(--ink-2); cursor: pointer; box-shadow: 0 2px 6px rgba(51, 64, 94, .25); }
+.lib-act button:hover { background: var(--accent); color: #fff; }
+.lib-act button.x:hover { background: var(--rose-deep); }
+.lib-act .i { width: 15px; height: 15px; }
+.lib-tick { position: absolute; top: 14px; left: 14px; width: 24px; height: 24px; border-radius: 8px; border: 2px solid #fff; background: rgba(51, 64, 94, .45); color: #fff; display: none; place-items: center; }
+.lib-tick .i { width: 14px; height: 14px; opacity: 0; }
+.lib-selecting .lib-tick { display: grid; }
+.lib-selecting .lib-act { display: none; }
+.lib-card.selected .lib-tick { background: var(--accent); }
+.lib-card.selected .lib-tick .i { opacity: 1; }
+.lib-empty { text-align: center; color: var(--ink-3); padding: 40px 10px; }
+.lib-empty p:first-child { font-size: 1.05rem; color: var(--ink-2); margin-bottom: 6px; }
+
+/* ---- 歌曲列 / song rows ---- */
+.lib-songs { display: grid; gap: 8px; }
+.lib-song { position: relative; display: flex; align-items: center; gap: 12px; padding: 7px 10px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); content-visibility: auto; contain-intrinsic-size: auto 62px; }
+.lib-song.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(95, 126, 174, .35); }
+.lib-song .thumb { width: 74px; border-radius: 8px; }
+.lib-song .t { flex: 1; min-width: 0; }
+.lib-song .t b { display: block; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-song .t small { color: var(--ink-3); }
+.lib-song .x { border: 0; background: transparent; color: var(--ink-3); cursor: pointer; border-radius: 50%; width: 28px; height: 28px; display: grid; place-items: center; }
+.lib-song .x:hover { background: var(--rose-deep); color: #fff; }
+.lib-song .x .i { width: 15px; height: 15px; }
+.lib-selecting .lib-song { cursor: pointer; }
+.lib-more { margin: 12px auto 0; display: block; }
+
+/* ---- 開啟動畫 / opening animations ---- */
+.lib-dlg[open] .lib-box { animation: libOpen .34s cubic-bezier(.2, .9, .3, 1.15); }
+.lib-dlg[open]::backdrop { animation: libFade .25s ease-out; }
+.lib-grid.enter, .lib-songs.enter { animation: libEnter .26s cubic-bezier(.2, .8, .3, 1); }
+.lib-card.opening { animation: libZoom .2s ease-in forwards; }
+@keyframes libOpen { from { opacity: 0; transform: translateY(26px) scale(.92); } to { opacity: 1; transform: none; } }
+@keyframes libFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes libEnter { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes libZoom { to { opacity: 0; transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) {
+  .lib-dlg[open] .lib-box, .lib-dlg[open]::backdrop, .lib-grid.enter, .lib-songs.enter, .lib-card.opening { animation: none; }
+  .lib-card { transition: none; }
+}
+
+/* ---- 小視窗：取名字、選歌單、播放選單 / small dialogs: asking a name, picking a playlist, the play menu ---- */
+.name-box { width: min(92vw, 380px); }
+.name-box input { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line); background: #fff; font: inherit; color: var(--ink); outline: none; }
+.name-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(95, 126, 174, .2); }
+.pick-list { display: grid; gap: 6px; max-height: 46vh; overflow-y: auto; }
+.pick-list button { text-align: left; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: #fff; cursor: pointer; font: inherit; color: var(--ink); }
+.pick-list button:hover { border-color: var(--accent); background: rgba(95, 126, 174, .08); }
+.pick-list small { color: var(--ink-3); margin-left: 6px; }
+.lib-menu { position: absolute; z-index: 20; min-width: 220px; max-width: 320px; padding: 6px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); box-shadow: 0 14px 34px rgba(51, 64, 94, .28); display: grid; gap: 2px; }
+.lib-menu button { text-align: left; padding: 9px 12px; border: 0; border-radius: 9px; background: transparent; color: var(--ink); font: inherit; font-size: .86rem; cursor: pointer; }
+.lib-menu button:hover { background: rgba(95, 126, 174, .14); }
+.lib-menu hr { border: 0; border-top: 1px solid var(--line); margin: 3px 0; }
+
+.dlg-title { font-size: 1.05rem; }
+.card .actions { z-index: 3; }
+
+/* ---- Spotify ---- */
+.sp-btn .sp-mark { background: #1DB954; color: #fff; display: grid; place-items: center; }
+.sp-btn .sp-mark .i { width: 18px; height: 18px; }
+.sp-btn.linked small { color: #3F7D66; }
+.sp-how { white-space: pre-line; font-size: .9rem; color: var(--ink-2); line-height: 1.6; }
+#spPaste { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: #fff; font: inherit; font-size: .82rem; color: var(--ink); resize: vertical; outline: none; }
+#spPaste:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(95, 126, 174, .2); }
+.sp-card .lib-art { background: linear-gradient(135deg, #1DB954, #A9E5C0); }
+.sp-hint { font-size: .74rem; color: var(--accent); margin-top: -2px; }

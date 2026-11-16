@@ -44,6 +44,7 @@ class Track:
     requester_avatar: str = ""      # 點歌者的 Discord 頭像網址（沒有 Discord 身分的訪客為空）/ requester's Discord avatar URL (empty for guests without a Discord identity)
     search: str = ""                # Spotify 的歌沒有音源，這裡放"歌名 歌手"，播放前才去 Bilibili／YouTube 找對應的 / Spotify has no audio, this holds "title artist" and the match is searched on Bilibili / YouTube right before playing
     matched: str = ""               # 找到的對應影片標題 / title of the video that was matched
+    matched_url: str = ""           # 找到的對應影片網址，下次直接用，不用再搜一次 / URL of the matched video, reused next time without searching again
     enriched: bool = False          # 補資訊試過了（成功或失敗都只試一次）/ enrichment was tried (once, success or not)
 
     def public(self) -> dict:
@@ -79,6 +80,8 @@ class Stream:
     duration: int | None
     quality: str
     thumbnail: str
+    codec: str = ""        # 音訊編碼，例如 opus、mp4a.40.2、flac / the audio codec, e.g. opus, mp4a.40.2, flac
+    abr: float = 0.0       # 音訊位元率 kbps，不知道就是 0 / audio bitrate in kbps, 0 when unknown
 
 
 def _base_opts() -> dict:

@@ -7,7 +7,7 @@ Please do **not** open a public issue with the details, use GitHub's "Report a v
 
 ## 設計上的重點 / Design notes
 
-- 看板預設是 `open` 模式：能連到網址的人就能控制播放，所以只在你信任的網路使用，要放到公開網路請用 `verify` / the dashboard defaults to `open`: anyone who can reach the URL controls playback, so use it on networks you trust and switch to `verify` when exposing it publicly
+- 看板的入口只有 `/help` 給的專屬連結（2.0 起沒有"知道網址就能控制"的 `open` 模式）；連結等同你的身分，不要轉貼給別人 / the only way into the dashboard is the personal link from `/help` (since 2.0 there is no `open` mode where knowing the URL is enough); the link is your identity, don't share it
 - `verify` 模式：只有 Discord 伺服器成員用 /help 的專屬連結進得來，瀏覽器存一把隨機憑證，主機只存雜湊 / `verify` mode: only server members get in through their personal /help link, the browser keeps a random token and the host stores only its hash
 - 更換 Bilibili 帳號永遠只限擁有者或本機 / switching the Bilibili account is always limited to the owner or the local machine
 - 中繼站：HMAC 挑戰握手（金鑰不上線）、每個 IP 的連線與頻率上限、握手失敗暫時封鎖、嚴格的安全標頭 / relay: HMAC challenge handshake (the key never travels), per-IP caps, temporary lock-out after failed handshakes, strict security headers
@@ -29,5 +29,12 @@ Please do **not** open a public issue with the details, use GitHub's "Report a v
 
 ## 不在範圍內 / Out of scope
 
-- 使用者自己公開了 Token 或把看板用 `open` 模式放到公開網路 / users who leak their own token or expose an `open` dashboard to the public internet
+- 使用者自己公開了 Token 或專屬連結 / users who leak their own token or personal link
 - 平台（Discord、Bilibili、YouTube）本身的問題與服務條款 / problems or terms of the platforms themselves
+
+## 2.0 新增的資料 / Data added in 2.0
+
+- `library.json`：每個人的歌單與資料夾（只有連結和顯示用的資料）。只在執行機器人的這台電腦上，不會傳到中繼站，已列入 `.gitignore` / each person's playlists and folders (links and display data only). It stays on the machine that runs the bot, never goes to the relay, and is in `.gitignore`
+- `spotify_tokens.json`：連結 Spotify 的人的 refresh token，等於對方的 Spotify 讀取權限（只能讀歌單）。只在這台電腦，不進 git，網頁拿不到它，登出就刪掉；請當成密碼保管 / the refresh tokens of people who linked Spotify, which is their read access to Spotify (playlists only). It stays on this machine, is not in git, the page never receives it, and logging out deletes it; keep it like a password
+- 授權碼 + PKCE 沒有 Client Secret 要保管；授權進行中的暫存只在記憶體、10 分鐘過期、只有發起的人貼得回來 / authorisation code + PKCE leaves no client secret to keep; the pending state is in memory only, expires after 10 minutes and only the person who started it can finish it
+- 歌單操作一律用 `/help` 連結裡的 Discord 身分，每個人只看得到也只能動自己的 / every library action uses the Discord identity from the `/help` link; everyone sees and edits only their own

@@ -15,14 +15,18 @@ from typing import TYPE_CHECKING
 import discord
 
 from .. import config
+from ..library import Library
 from ..members import Registry
-from ..paths import MEMBERS_FILE
+from ..spotify import Accounts
+from ..paths import LIBRARY_FILE, MEMBERS_FILE, SPOTIFY_FILE
 from ..player import PlayerBot
 from .actions import ActionsMixin
 from .bili import BiliMixin
 from .identity import IdentityMixin
+from .library import LibraryMixin
 from .routing import RoutingMixin
 from .snapshot import SnapshotMixin
+from .spotify import SpotifyMixin
 from .streams import StreamsMixin
 
 if TYPE_CHECKING:
@@ -30,7 +34,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("musicbot")
 
 
-class Hub(IdentityMixin, RoutingMixin, StreamsMixin, SnapshotMixin, ActionsMixin, BiliMixin):
+class Hub(IdentityMixin, RoutingMixin, StreamsMixin, SnapshotMixin, ActionsMixin, BiliMixin, LibraryMixin, SpotifyMixin):
     """所有播放器的總指揮
 
     The conductor of all players. One Hub exists per process.
@@ -42,10 +46,11 @@ class Hub(IdentityMixin, RoutingMixin, StreamsMixin, SnapshotMixin, ActionsMixin
         self.base_url = ""
         self.owner_ids: set[int] = set()
         self.secret = config.dashboard_secret()
-        self.mode = config.dashboard_mode()                 # open / verify / voice
-        self.open_access = self.mode == "open"              # 任何人都能進（也決定 /api/guilds 要不要公開）/ anyone may enter (also decides whether /api/guilds is public)
+        self.mode = config.dashboard_mode()                 # verify / voice
         self.free_control = self.mode != "voice"            # 進得來的人可以控制所有頻道（語音模式才限制在自己的頻道）/ whoever gets in may control every channel (only voice mode restricts to your own channel)
         self.members = Registry(MEMBERS_FILE)               # 驗證過的成員與裝置（存在這台電腦）/ verified members and devices (stored on this machine)
+        self.library = Library(LIBRARY_FILE)                # 每個人的歌單與資料夾（存在這台電腦）/ everyone's playlists and folders (stored on this machine)
+        self.spotify = Accounts(SPOTIFY_FILE)               # 各人連結的 Spotify 憑證（存在這台電腦）/ everyone's linked Spotify tokens (stored on this machine)
         self._member_cache: dict[tuple[int, int], tuple[float, str | None]] = {}
         self._avatar_cache: dict[tuple[int, int], str] = {}
         self._ceiling: int | None = None                    # 卡頓偵測停掉頻道後，暫時壓住的同時播放數 / the temporary cap on simultaneous streams after the stutter detector removed one

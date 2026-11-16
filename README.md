@@ -21,9 +21,12 @@ queue with drag-and-drop cards.
 - **Multi-channel playback**: a Discord bot account can sit in only one voice channel per server, so extra
   channels are served by *clone* bot accounts (`add-clone.bat`). A background **stutter detector** keeps playback
   smooth: if it is certain a newly added channel is causing stutter, it stops channels one at a time, newest first.
-- **Dashboard access**: `open` (anyone with the URL), `verify` (personal link from `/help`, device remembered) or
-  `voice` (link + you must be in a voice channel). Optional **relay** node on a VPS so friends can reach the
+- **Dashboard access**: the personal link from `/help` is the only way in (`verify`, device remembered) or
+  `voice` (link + you must be in a voice channel); there is no "anyone with the URL" mode since 2.0. Optional **relay** node on a VPS so friends can reach the
   dashboard while the music keeps playing at home (no router ports needed).
+- **My playlists** (2.0): each Discord user's own folders and playlists of links, nested folders, multi-select, loop a folder or loop across folders, Spotify account link (reads your own Spotify playlists). Stored in `library.json` on the machine that runs the bot.
+- **Quality**: an Opus source (YouTube) goes into Discord untouched; Bilibili's AAC is re-encoded once with quality-first settings (no assumed packet loss, soxr resampling); Spotify songs are matched to the best-quality video of the right length.
+- **Big queues**: the dashboard draws only the cards in view, so a 2500-card queue scrolls and drags at 60 fps.
 - **Quick start**: create a bot in the Discord Developer Portal, install Python 3.11+ and ffmpeg, run
   `python -m venv .venv`, `.venv\Scripts\python.exe -m pip install -r requirements.txt`, copy `.env.example` to
   `.env`, put your token in it, then double-click `start.bat`. The rest of this README is in Traditional Chinese;
@@ -76,6 +79,17 @@ queue with drag-and-drop cards.
 預設不打擾頻道裡的其他人：指令的回覆只有你自己看得到，機器人只在出問題時才在頻道發訊息
 想讓大家都看得到，在 `.env` 設 `PUBLIC_REPLIES=1`；想要每首歌都發"正在播放"，設 `CHANNEL_NOTICES=all`（完全不發是 `off`）
 
+### 我的歌單與 Spotify（2.0）
+
+看板待播清單標題右邊的 **資料夾圖示** 是"我的歌單"，旁邊的 **選取圖示** 可以勾選待播的歌
+- **存成歌單**：按選取、點幾張卡片、按"存成歌單"；或按卡片右上角的"加入歌單"把一首歌放進某張歌單
+- **資料夾**：在歌單視窗按"選取"、勾幾張歌單，按"建立資料夾"；資料夾裡還可以再建資料夾（最多 8 層）
+- **播放**：卡片上的 ▶ 可以"加到最後／取代待播／放到下一首"；資料夾還有 **資料夾循環**（播完重播這個資料夾）和 **跨資料夾循環**（播完換同一層的下一個資料夾，到底繞回第一個）
+- **貼連結存入**：貼 Bilibili／YouTube／Spotify 的歌曲或歌單連結，直接存起來，下次召喚機器人不用再貼
+- 每個人只看得到自己的歌單（用 Discord 身分區分），存在執行機器人的這台電腦的 `library.json`，不會傳到中繼站
+- **Spotify 帳號**（選用）：在 `.env` 填 `SPOTIFY_CLIENT_ID` 後，Bilibili 按鈕上方會出現"Spotify 帳號"；連結後歌單視窗多一個"我的 Spotify 歌單"，點一張就存進我的歌單
+  Spotify 限制：開發模式的應用程式要擁有者有 **Premium**、最多 **5** 位使用者，而且只讀得到**自己建立或共同編輯**的歌單（Spotify 沒有提供歌單資料夾）；**這部分尚未用真的 Premium 帳號驗證**
+
 ### 輸入的自動辨識
 
 | 你貼的內容 | 結果 |
@@ -105,19 +119,19 @@ Spotify 的限制：連結要是公開的；播放清單最多讀到 100 首（S
 
 ### 誰能做什麼（`DASHBOARD_ACCESS`）
 
-**開放模式（預設）**：所有人用**同一個網址**，不需要各自的連結，可以控制這個伺服器**所有頻道**的播放
+**入口只有一個：`/help` 給的專屬連結**（2.0 起沒有"知道網址就能用"的開放模式）。在 Discord 輸入 `/help`，點它給你的連結，點一下就綁定你的 Discord 身分，之後可以控制這個伺服器**所有頻道**的播放
 
 | | 看 | 控制播放（所有頻道） | 更換 Bilibili 帳號 |
 | --- | --- | --- | --- |
 | 執行機器人的電腦上直接開 localhost | 是 | 是 | **是** |
 | 機器人擁有者（用 `/help` 給的擁有者連結） | 是 | 是 | **是** |
-| 其他知道網址的人（訪客） | 是 | 是 | **否** |
-| 連不到這個網址的人 | 否 | 否 | 否 |
+| 其他成員（用自己的 `/help` 連結） | 是 | 是 | **否** |
+| 只知道網址、沒有連結的人 | 否（只會看到"請用 /help 的專屬連結進來"） | 否 | 否 |
 
 - 在看板上用"**＋ 加到頻道**"選一個語音頻道，會開出該頻道**獨立的分頁**（派一個閒置的機器人進去，歌只進這個頻道）；已經有播放器的頻道，直接點上方分頁就能控制它，見下面"分身"
-- 訪客的"點歌：xxx"會用自動產生的暱稱（如"訪客 123"）
-- **安全上的取捨**：開放模式下，**能連到網址的人就能控制播放**，所以只在你信任的網路使用（區網、虛擬網路，見下一節），**更換 Bilibili 帳號永遠只限擁有者／本地**，因為那會換掉你電腦上登入的帳號
-- 要把看板放到**公開網路**（例如通道服務、中繼站）時，建議改用**驗證模式**：`.env` 設 `DASHBOARD_ACCESS=verify`
+- 看板上"點歌：xxx"顯示的是你真實的 Discord 暱稱和頭像
+- **更換 Bilibili 帳號永遠只限擁有者／本地**，因為那會換掉你電腦上登入的帳號
+- `.env` 的 `DASHBOARD_ACCESS` 可以是 `verify`（預設）或 `voice`（連結 + 人要在語音頻道裡才能控制）；舊 `.env` 還寫 `open` 會自動當成 `verify`並在記錄裡提醒
 
 **驗證模式（`verify`）**：用 Discord 證明"你是這個伺服器的成員"，朋友**不需要安裝任何東西、也不用輸入任何碼**
 
@@ -199,7 +213,7 @@ cloudflared tunnel --url http://localhost:8765
 - **來源 IP 限制**：同一個 IP 同時最多 12 個瀏覽器連線、每分鐘最多 40 次新連線（超過回 429）；同一個 IP 同時最多 3 個尚未完成握手的播放端連線；播放端握手失敗 5 次，該 IP 封鎖 10 分鐘，只有"直接連到中繼站的是本地（例如 cloudflared、Caddy）"時才採信 `CF-Connecting-IP`／`X-Forwarded-For`，從網際網路直連的人無法用標頭偽造自己的 IP
 - **HTTP 安全標頭**（看板與中繼站都有）：內容安全政策（CSP，只執行自己的腳本、不能被別的網站用 iframe 嵌入）、`X-Content-Type-Options: nosniff`、`Referrer-Policy: no-referrer`、`Cache-Control: no-store` 等
 - **要注意**：沒有網域時中繼站是明文 HTTP，看板上的訊息（含 `/help` 連結裡的憑證）在網路上沒有加密，要加密請在中繼站前面放 TLS（例如 Caddy／Cloudflare 通道，網址改用 `wss://`），或把中繼站放在 Tailscale 等虛擬網路裡
-- **開放模式 + 公網位址 = 任何知道網址的人都能點歌／切歌**（不會碰到你的帳號），中繼站在公網上時，請在家裡的 `.env` 設 `DASHBOARD_ACCESS=verify`（朋友點 `/help` 的連結一次，之後免輸入）或 `voice`
+- 2.0 起沒有"知道網址就能控制"的模式，放在公網上也只有拿到 `/help` 專屬連結的人能控制（朋友點一次，之後免輸入）；要更嚴格可以在家裡的 `.env` 設 `DASHBOARD_ACCESS=voice`
 
 **把中繼站放上公網前的檢查表**（Ubuntu／Debian VPS）
 - 用**專用的非 root 帳號**跑中繼站（範例 `musicbot`），`.env` 設 `chmod 600`

@@ -7,10 +7,11 @@ import { queueEl, queueMoreEl } from "./dom.js";
 import { send } from "./net.js";
 import { S } from "./store.js";
 import { setText } from "./util.js";
+import { lastVisibleRow } from "./virtuallist.js";
 
-const AHEAD = 600;      // 最後一張卡片離可見範圍底部這麼多像素以內，就先載入下一批 / load the next batch once the last card is within this many pixels of the visible bottom
-const WAIT_MS = 1500;   // 要過一次之後，這段時間內不再要（等伺服器回來）/ after asking once, don't ask again for this long (the answer is on its way)
-let waitUntil = 0;
+const AHEAD_ROWS = 8;     // 看得到的最後一列離已載入的清單尾端不到幾列時，就去要下一批 / ask for the next batch when the last visible row is within this many rows of the end of what is loaded
+const RETRY_MS = 3000;    // 要了之後沒等到，隔這麼久再要一次（正常情況是收到才會再要）/ if the answer never comes, ask again after this long (normally the next request waits for the answer)
+let asked = 0, askedAt = 0;   // 上次要求的首數與時間 / what we last asked for, and when
 
 /**
  * 伺服器沒帶 queue = 清單和上次一樣：把手上那份接回這份快照（render 一開始就會呼叫）
@@ -35,16 +36,14 @@ function canLoadMore(s) {
 /** 捲到接近底部就要下一批 / Ask for the next batch when the view gets close to the bottom. */
 function maybeLoadMore() {
   const s = S.state;
-  if (!s || !s.queue || S.targetChannel || !canLoadMore(s) || performance.now() < waitUntil) return;
-  const last = queueEl.lastElementChild;
-  if (!last) return;
-  // 寬螢幕是清單自己捲（看得到的範圍到清單底部），窄螢幕是整頁捲（到視窗底部）
-  // On wide screens the list scrolls itself (visible down to the list's bottom); on narrow ones the whole page scrolls (down to the window's bottom).
-  const ownScroll = getComputedStyle(queueEl).overflowY !== "visible";
-  const visibleBottom = ownScroll ? Math.min(window.innerHeight, queueEl.getBoundingClientRect().bottom) : window.innerHeight;
-  if (last.getBoundingClientRect().top - visibleBottom > AHEAD) return;
-  waitUntil = performance.now() + WAIT_MS;
-  send({ type: "queue_window", limit: s.queue.length + s.queue_window.page });
+  if (!s || !s.queue || S.targetChannel || !canLoadMore(s)) return;
+  if (s.queue.length - lastVisibleRow() > AHEAD_ROWS) return;
+  if (asked > s.queue.length && performance.now() - askedAt < RETRY_MS) return;   // 上一批還沒到 / the last batch has not arrived yet
+  // 每次要的量 = 目前已載入的量（至少一頁）：快速往下捲時 100、200、400... 很快就到底，慢慢捲則不會多要
+  // Ask for as many again as are loaded (at least a page): fast scrolling goes 100, 200, 400... and reaches the end quickly.
+  asked = Math.min(s.queue_window.max, s.queue.length + Math.max(s.queue_window.page, s.queue.length));
+  askedAt = performance.now();
+  send({ type: "queue_window", limit: asked });
 }
 queueEl.addEventListener("scroll", maybeLoadMore, { passive: true });
 window.addEventListener("scroll", maybeLoadMore, { passive: true });

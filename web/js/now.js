@@ -31,7 +31,7 @@ export function syncNow(s) {
     }
     return;
   }
-  const key = [c.id, c.title, c.thumbnail, c.duration, c.uploader, c.requester, c.requester_avatar, c.loading, c.quality, c.bitrate].join("\u0001");
+  const key = [c.id, c.title, c.thumbnail, c.duration, c.uploader, c.requester, c.requester_avatar, c.loading, c.quality, c.bitrate, c.direct].join("\u0001");
   const present = nowDrop.firstElementChild && nowDrop.firstElementChild.dataset.current === "1";   // 卡片還在畫面上嗎 / is the card still on screen?
   if (key !== nowKey || !present) {          // 換歌、載入完成補上音質、或卡片被拖走後沒換歌：才重建整張卡片 / rebuild only on a song change, when loading finished and quality arrived, or when the card was dragged away without a song change
     nowDrop.replaceChildren(makeNowCard(s));
@@ -54,7 +54,7 @@ export function makeNowCard(s) {
   card.appendChild(meta);
 
   if (c.loading) card.appendChild(el("span", "chip loading", T("loading")));
-  else if (c.quality) card.appendChild(el("span", "chip", T("sourceChip", { quality: c.quality, bitrate: c.bitrate })));
+  else if (c.quality) card.appendChild(el("span", "chip", c.direct ? T("sourceDirect", { quality: c.quality }) : T("sourceChip", { quality: c.quality, bitrate: c.bitrate })));
 
   const seek = makeSeekBar(c);
   card.appendChild(seek);

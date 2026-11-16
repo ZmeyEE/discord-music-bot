@@ -94,6 +94,21 @@ class ActionsMixin:
             return "請輸入網址或關鍵字"
         when = msg.get("when") if msg.get("when") in ("end", "next", "now") else "end"
 
+        target = self._pick_target(gid, ctx, pid, msg)
+        if isinstance(target, str):
+            return target
+        worker, guild, voice_channel = target
+
+        avatar = await self.member_avatar(gid, ctx.user_id)
+        _, info = await worker.enqueue(guild, q, ctx.name or "網頁後台", voice_channel, when, avatar)
+        return info
+
+    def _pick_target(self, gid: int, ctx: UserCtx, pid: str | None, msg: dict):
+        """決定歌要放進哪個頻道／播放器（加歌和播放歌單共用）；回傳 (播放器, 伺服器, 語音頻道) 或一段錯誤訊息（str）
+
+        Decide which channel / player songs go to (shared by "add a song" and "play a playlist").
+        Returns ``(worker, guild, voice channel)`` or an error message (str).
+        """
         voice_channel = None
         if self.free_control or ctx.is_host:
             # 開放／驗證模式／本地：不用管使用者人在哪，由"他在看板上選的頻道或播放器"決定放去哪
@@ -129,9 +144,7 @@ class ActionsMixin:
                 return self.all_busy_message(gid)
             voice_channel = guild.get_channel(vch.id)
 
-        avatar = await self.member_avatar(gid, ctx.user_id)
-        _, info = await worker.enqueue(guild, q, ctx.name or "網頁後台", voice_channel, when, avatar)
-        return info
+        return worker, guild, voice_channel
 
     def _target_channel(self, gid: int, channel_id: int):
         """要把歌放進指定頻道：該頻道已有播放器就用它，沒有就預約一個閒置的

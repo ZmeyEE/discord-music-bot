@@ -63,14 +63,15 @@ class Relay(LimitsMixin, WorkerMixin, BrowserMixin):
         return web.FileResponse(WEB_DIR / "index.html")
 
     async def guilds(self, request: web.Request) -> web.Response:
-        """伺服器清單，僅在 open 模式公開；其他模式拒絕，避免陌生人探測有哪些伺服器
+        """伺服器清單：2.0 起一律不公開（拒絕），避免陌生人探測有哪些伺服器；播放端離線時回空清單
 
-        The server list. Only exposed in "open" mode; refused otherwise so strangers can't probe which servers exist.
+        The server list. Since 2.0 it is never exposed (refused), so strangers can't probe which servers exist;
+        an empty list while the worker is offline (nothing to leak).
         """
         if self.worker is None:
             return web.json_response([])
         if not self.hello.get("open"):
-            raise web.HTTPForbidden(text="這個機器人使用語音模式，請從 Discord 的 /help 取得連結")
+            raise web.HTTPForbidden(text="請從 Discord 的 /help 取得專屬連結")
         return web.json_response(self.hello.get("guilds", []))
 
     async def healthz(self, request: web.Request) -> web.Response:

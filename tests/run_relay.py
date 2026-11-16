@@ -14,7 +14,7 @@ PY = sys.executable
 NOWIN = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 KEY = "t" * 40            # 測試用金鑰，不是真的 / throwaway test key, not a real one
 SUITES = [                # (腳本, 參數, DASHBOARD_ACCESS) / (script, args, DASHBOARD_ACCESS)
-    ("relay_test.py", [], "open"),
+    ("relay_test.py", [], "verify"),
     ("relay_verify.py", [], "verify"),
     ("relay_extra.py", ["voice"], "voice"),
 ]

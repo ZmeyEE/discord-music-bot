@@ -43,7 +43,7 @@ async def main():
             first = (await take(old))[-1]
             check("O1 一連上只收到一頁（100 首），總數 5000", len(first[1]["queue"]) == 100 and first[1]["queue_total"] == N, (len(first[1]["queue"]), first[1]["queue_total"]))
             check("O2 第一份狀態小於 60 KB（原本 1000 首是 287 KB）", first[0] < 60_000, first[0])
-            check("O3 快照帶著一頁和上限的大小，指紋不外流", first[1]["queue_window"] == {"page": 100, "max": 1000} and "queue_sig" not in first[1], first[1].get("queue_window"))
+            check("O3 快照帶著一頁和上限的大小，指紋不外流", first[1]["queue_window"] == {"page": 100, "max": 5000} and "queue_sig" not in first[1], first[1].get("queue_window"))
             await dbg("/poke?n=5&gap=0.08")
             got = await take(old)
             check("O4 舊版網頁每次都還是拿得到清單（不會壞）", got and all("queue" in d for _, d in got), len(got))
@@ -65,7 +65,7 @@ async def main():
             check("W4 往下要 300 首：回一份 300 首的清單", got and len(got[-1][1].get("queue", [])) == 300, [len(d.get("queue", [])) for _, d in got])
             await new.send_str(json.dumps({"type": "queue_window", "limit": 10 ** 6}))
             got = await take(new, 0.8)
-            check("W5 要超過上限：只給 1000 首", got and len(got[-1][1].get("queue", [])) == 1000, [len(d.get("queue", [])) for _, d in got])
+            check("W5 要一百萬首也只給上限（5000）", got and len(got[-1][1].get("queue", [])) == 5000, [len(d.get("queue", [])) for _, d in got])
             await new.send_str(json.dumps({"type": "queue_window", "limit": 100}))
             page = (await take(new, 0.8))[-1][1]["queue"]
 

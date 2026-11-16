@@ -33,6 +33,7 @@ class SnapshotMixin:
             cur = st.current.public() | {
                 "quality": st.stream.quality if st.stream else "",
                 "bitrate": st.bitrate_kbps,
+                "direct": st.direct,
                 "position": round(st.position(), 1),
                 "loading": st.stream is None,
             }

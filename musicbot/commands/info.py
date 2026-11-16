@@ -50,26 +50,6 @@ def register(tree: app_commands.CommandTree, hub: Hub, h: Helpers) -> None:
                     ),
                     inline=False,
                 )
-            elif hub.open_access:
-                # 開放模式：所有人共用同一個網址；擁有者另外有專用連結
-                # open mode: everyone shares one URL; the owner additionally gets a personal link
-                url = hub.guild_url(gid)
-                embed.add_field(
-                    name="網頁控制看板",
-                    value=(
-                        f"[**點此開啟看板**]({url})\n{url}\n"
-                        "所有人用同一個網址，不需要各自的連結。在看板上選頻道、貼網址加歌、拖曳排序、調進度與音質，"
-                        "可以控制這個伺服器所有頻道的播放。"
-                    ),
-                    inline=False,
-                )
-                if user.id in hub.owner_ids:
-                    owner_url = hub.link_for(gid, user.id, user.display_name)
-                    embed.add_field(
-                        name="擁有者專用連結（可更換 Bilibili 帳號）",
-                        value=f"[點此開啟]({owner_url})\n綁定你的身分、12 小時有效，請勿轉貼。在執行機器人的那台電腦上開 localhost 也有同樣權限。",
-                        inline=False,
-                    )
             else:
                 # 語音模式：連結綁定身分，而且人要在語音頻道裡才能控制
                 # voice mode: the link is bound to the identity, and you must be in a voice channel to control
@@ -128,7 +108,7 @@ def register(tree: app_commands.CommandTree, hub: Hub, h: Helpers) -> None:
         s = st.stream
         await h.say(
             interaction,
-            f"**{s.title}**\n來源音質：`{s.quality}` → 傳送：`Opus {st.bitrate_kbps}kbps`\n點歌者：{st.current.requester}",
+            f"**{s.title}**\n來源音質：`{s.quality}` → 傳送：`{'原始音軌直通（不重新編碼）' if st.direct else f'Opus {st.bitrate_kbps}kbps'}`\n點歌者：{st.current.requester}",
         )
 
     @tree.command(name="players", description="看這個伺服器所有播放器（含分身）的狀態，以及分身的邀請連結")

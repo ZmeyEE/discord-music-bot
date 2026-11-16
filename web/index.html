@@ -18,6 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Nunito:wght@600;800&display=swap">
   <link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/library.css">
 </head>
 <body>
 
@@ -92,6 +93,14 @@
     <path d="M19 45a9.500 9.500 0 0 1-1-18.950A14.500 14.500 0 0 1 45.600 22.500 10.800 10.800 0 0 1 46 45z" stroke-width="2.200"/>
     <path d="M27 38.500v-7l9-1.800v7.800" stroke-width="2"/><circle cx="24.800" cy="38.800" r="2.200" stroke-width="2"/><circle cx="33.800" cy="37.400" r="2.200" stroke-width="2"/>
   </symbol>
+  <!-- 我的歌單用的圖示 / icons of the library -->
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2v7.300a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6.500 4.500h11v15L12 15.800 6.500 19.500z"/><path d="M12 8v4.600M9.700 10.300h4.600"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5.500 12.500 4.300 4.300L18.500 8"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.500 6 8.500 12l6 6"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M5 19l1-4L16.500 4.500a1.700 1.700 0 0 1 2.400 0l.6.600a1.700 1.700 0 0 1 0 2.400L9 18z"/></symbol>
+  <symbol id="i-select" viewBox="0 0 24 24"><rect x="4.500" y="4.500" width="15" height="15" rx="3.500"/><path d="m8.500 12.300 2.400 2.400 4.600-5"/></symbol>
+  <symbol id="i-library" viewBox="0 0 24 24"><path d="M5 5.500h3.500v13H5zM10.500 5.500H14v13h-3.500zM16 7.200l3.300-.9 2.900 12-3.300.9z" transform="translate(-1 0)"/></symbol>
 </svg>
 
 <header class="topbar">
@@ -144,6 +153,13 @@
     <div id="nowDrop" class="now-drop"></div>
     <p class="hint" data-i18n="dropHint">把待播卡片拖到這裡，立即播放</p>
 
+    <!-- Spotify 帳號：連結後可以讀自己的歌單（沒設定 SPOTIFY_CLIENT_ID 就不會出現）/ Spotify account: once linked its playlists can be read (hidden unless SPOTIFY_CLIENT_ID is set) -->
+    <button type="button" id="spBtn" class="bili-btn sp-btn" hidden>
+      <span class="bili-avatar sp-mark" aria-hidden="true"><svg class="i"><use href="#i-note"/></svg></span>
+      <span class="bili-text"><span id="spTitleBtn" data-i18n="spTitle">Spotify 帳號</span><small id="spSub"></small></span>
+      <svg class="i" aria-hidden="true"><use href="#i-link"/></svg>
+    </button>
+
     <!-- 只有機器人擁有者看得到 / visible to the bot owner only -->
     <button type="button" id="biliBtn" class="bili-btn" hidden>
       <span class="bili-avatar" id="biliAvatar"></span>
@@ -157,10 +173,19 @@
     <header class="panel-head">
       <h2 class="panel-title" id="h-queue"><span data-i18n="queueTitle">待播清單</span> <span id="queueCount" class="count">0</span></h2>
       <div class="tools">
+        <button type="button" id="btnLibrary" class="tool-btn" title="我的歌單" aria-label="我的歌單" data-i18n-title="libOpen" data-i18n-aria="libOpen"><svg class="i"><use href="#i-folder"/></svg></button>
+        <button type="button" id="btnSelect" class="tool-btn" title="選取歌曲" aria-label="選取歌曲" aria-pressed="false" data-i18n-title="selectMode" data-i18n-aria="selectMode"><svg class="i"><use href="#i-select"/></svg></button>
         <button type="button" id="btnShuffle" class="tool-btn" title="隨機打亂順序" aria-label="隨機打亂順序" data-i18n-title="shuffle" data-i18n-aria="shuffle"><svg class="i"><use href="#i-shuffle"/></svg></button>
         <button type="button" id="btnClear" class="tool-btn" title="清空待播清單" aria-label="清空待播清單" data-i18n-title="clearList" data-i18n-aria="clearList"><svg class="i"><use href="#i-clear"/></svg><span class="armed-text" data-i18n="clearAgain">再按一次清空</span></button>
       </div>
     </header>
+
+    <div id="selBar" class="sel-bar" role="toolbar">
+      <span id="selCount" class="count-text">0</span>
+      <button type="button" id="selAll" class="btn-ghost" data-i18n="selAll">全選已載入的</button>
+      <button type="button" id="selSave" class="btn-primary" disabled>存成歌單</button>
+      <button type="button" id="selNone" class="btn-ghost" data-i18n="libCancel">取消</button>
+    </div>
 
     <div id="queueEmpty" class="empty">
       <svg class="i empty-art" aria-hidden="true"><use href="#i-cloud"/></svg>
@@ -192,6 +217,68 @@
     </div>
   </section>
 </main>
+
+
+<!-- Spotify 帳號：授權視窗 / Spotify account: the authorisation dialog -->
+<dialog id="spDialog" class="dlg" aria-labelledby="spTitle">
+  <div class="dlg-box">
+    <header class="dlg-head">
+      <h2 id="spTitle" data-i18n="spTitle">Spotify 帳號</h2>
+      <button type="button" class="tool-btn" id="spClose" aria-label="關閉" data-i18n-aria="libClose"><svg class="i"><use href="#i-close"/></svg></button>
+    </header>
+    <div id="spUnlinked">
+      <p id="spHow" class="sp-how"></p>
+      <textarea id="spPaste" rows="3" spellcheck="false" placeholder="http://127.0.0.1:8765/spotify/callback?code=…" data-i18n-ph="spPastePh"></textarea>
+      <footer class="dlg-actions">
+        <button type="button" id="spGo" class="btn-ghost" data-i18n="spGo">前往授權</button>
+        <button type="button" id="spDone" class="btn-primary" data-i18n="spDone">完成連結</button>
+      </footer>
+    </div>
+    <div id="spLinked" hidden>
+      <p class="sp-how"><b id="spName"></b></p>
+      <p class="sp-how" data-i18n="spOnlyNote">Spotify 開發模式限制：只讀得到你自己建立或共同編輯的歌單。</p>
+      <footer class="dlg-actions">
+        <button type="button" id="spLogout" class="btn-ghost danger" data-i18n="spLogout">登出</button>
+        <button type="button" id="spOpenLists" class="btn-primary" data-i18n="spLists">我的 Spotify 歌單</button>
+      </footer>
+    </div>
+  </div>
+</dialog>
+
+<!-- 我的歌單視窗：資料夾與歌單卡片 / the library dialog: folder and playlist cards -->
+<dialog id="libDialog" class="dlg lib-dlg" aria-labelledby="libTitle">
+  <div id="libBox" class="dlg-box lib-box">
+    <div class="lib-head">
+      <button type="button" class="tool-btn" id="libUp" aria-label="上一層" title="上一層" data-i18n-aria="libBack" data-i18n-title="libBack"><svg class="i"><use href="#i-back"/></svg></button>
+      <h2 id="libTitle" data-i18n="libTitle">我的歌單</h2>
+      <nav id="libCrumbs" class="lib-crumbs" aria-label="路徑"></nav>
+      <button type="button" class="tool-btn" id="libClose" aria-label="關閉" data-i18n-aria="libClose"><svg class="i"><use href="#i-close"/></svg></button>
+    </div>
+    <div id="libBar" class="lib-bar"></div>
+    <div id="libBody" class="lib-body"></div>
+  </div>
+</dialog>
+
+<!-- 問名字的小視窗 / a small dialog asking for a name -->
+<dialog id="nameDialog" class="dlg" aria-labelledby="nameTitle">
+  <form id="nameForm" class="dlg-box name-box" method="dialog">
+    <h2 id="nameTitle" class="dlg-title"></h2>
+    <input id="nameInput" type="text" maxlength="500" autocomplete="off" spellcheck="false">
+    <footer class="dlg-actions">
+      <button type="button" id="nameCancel" class="btn-ghost" data-i18n="libCancel">取消</button>
+      <button type="submit" id="nameOk" class="btn-primary" data-i18n="libOk">確定</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- 選歌單的小視窗 / a small dialog to pick a playlist -->
+<dialog id="pickDialog" class="dlg" aria-labelledby="pickTitle">
+  <div class="dlg-box name-box">
+    <h2 id="pickTitle" class="dlg-title" data-i18n="libPickTitle">加到哪張歌單？</h2>
+    <div id="pickList" class="pick-list"></div>
+    <footer class="dlg-actions"><button type="button" id="pickCancel" class="btn-ghost" data-i18n="libCancel">取消</button></footer>
+  </div>
+</dialog>
 
 <!-- Bilibili 帳號：掃碼登入視窗（只有機器人擁有者能開啟）/ Bilibili account: QR-login dialog (only the bot owner can open it) -->
 <dialog id="biliDialog" class="dlg" aria-labelledby="biliDlgTitle">
@@ -247,6 +334,7 @@
 
 <div id="toast" class="toast" role="status" hidden></div>
 
+<script src="/static/i18n-library.js"></script>
 <script src="/static/i18n.js"></script>
 <script src="/static/vendor/Sortable.min.js"></script>
 <script type="module" src="/static/js/main.js"></script>

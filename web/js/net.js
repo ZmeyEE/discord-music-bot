@@ -1,6 +1,8 @@
 /* 連線：WebSocket、重連、收到伺服器訊息、送出操作
    Connection: the WebSocket, reconnecting, server messages, sending actions */
 import { onBiliMessage } from "./bili.js";
+import { onSpotify } from "./spotify.js";
+import { onLibrary, onLibrarySongs } from "./library.js";
 import { permBanner } from "./perms.js";
 import { announceWindow } from "./queuewindow.js";
 import { render } from "./render.js";
@@ -14,13 +16,13 @@ export const OK_ON_EMPTY_TAB = new Set(["add", "select", "quality", "queue_windo
 
 /** 送一則訊息給伺服器（連線中才送；空分頁會擋下不允許的操作）/ Send a message to the server (only while connected; empty tabs block disallowed actions). */
 export const send = (obj) => {
-  if (S.targetChannel && !OK_ON_EMPTY_TAB.has(obj.type)) { toast(T("emptyChannelToast")); return; }
+  if (S.targetChannel && !OK_ON_EMPTY_TAB.has(obj.type) && !String(obj.type).startsWith("lib_") && !String(obj.type).startsWith("sp_")) { toast(T("emptyChannelToast")); return; }
   if (S.ws && S.ws.readyState === WebSocket.OPEN) S.ws.send(JSON.stringify(obj));
 };
 
 /* ------------------------------------------------------------ 連線 / Connection */
-// 開放模式下沒有 Discord 身分時，用一個自動產生的暱稱當"點歌：xxx"
-// In open mode without a Discord identity, an auto-generated nickname is used as "requested by: xxx".
+// 沒有 Discord 身分時（例如本機直接開），用一個自動產生的暱稱當"點歌：xxx"
+// Without a Discord identity (e.g. opened directly on the local machine), an auto-generated nickname is used as "requested by: xxx".
 let myName = T("guest");
 try {
   myName = localStorage.getItem("mb_name") || "";
@@ -41,11 +43,14 @@ export function connect() {
   if (S.token) params.set("t", S.token);
   if (S.device) params.set("d", S.device);
   S.ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/${gid}?${params}`);
-  S.ws.onopen = () => { retry = 0; announceWindow(); };
+  S.ws.onopen = () => { retry = 0; announceWindow(); send({ type: "sp_status" }); };
   S.ws.onmessage = (ev) => {
     const msg = JSON.parse(ev.data);
     if (msg.type === "state") render(msg.data);
     else if (msg.type === "toast") toast(msg.text);
+    else if (msg.type === "library") onLibrary(msg);
+    else if (msg.type === "spotify") onSpotify(msg);
+    else if (msg.type === "library_songs") onLibrarySongs(msg);
     else if (msg.type === "bili_qr" || msg.type === "bili_status") onBiliMessage(msg);
     else if (msg.type === "verified") { saveDevice(msg.token); toast(T("verified", { name: msg.name })); }
     else if (msg.type === "revoked") { saveDevice(null); toast(T("revoked")); }

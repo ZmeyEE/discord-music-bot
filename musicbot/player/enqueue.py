@@ -62,6 +62,38 @@ class EnqueueMixin:
             return [], f"解析失敗：{str(exc)[:200]}"
         if not tracks:
             return [], "找不到可播放的內容"
+        return await self._place(guild, tracks, requester_avatar, voice_channel, when)
+
+    async def enqueue_tracks(
+        self, guild: discord.Guild, tracks: list[Track], voice_channel: discord.abc.Connectable | None = None, when: str = "end",
+    ) -> tuple[list[Track], str | None]:
+        """加入已經做好的曲目（我的歌單用，不用再解析連結），when 同 enqueue
+
+        Add ready-made tracks (used by the library; no link needs resolving). ``when`` as in enqueue.
+        """
+        try:
+            return await self._place(guild, tracks, tracks[0].requester_avatar if tracks else "", voice_channel, when)
+        finally:
+            self.release(guild.id)
+
+    @staticmethod
+    def tracks_from_songs(songs: list[dict], requester: str, avatar: str = "") -> list[Track]:
+        """把歌單裡存的歌變回曲目；已經有縮圖的不用再補資料
+
+        Turn stored songs back into tracks; those that already have a thumbnail need no enrichment.
+        """
+        return [Track(url=s["url"], title=s.get("title") or s["url"], requester=requester, thumbnail=s.get("thumbnail") or "",
+                      duration=s.get("duration"), uploader=s.get("uploader") or "", requester_avatar=avatar,
+                      search=s.get("search") or "", enriched=bool(s.get("thumbnail"))) for s in songs]
+
+    async def _place(
+        self, guild: discord.Guild, tracks: list[Track], requester_avatar: str,
+        voice_channel: discord.abc.Connectable | None, when: str,
+    ) -> tuple[list[Track], str | None]:
+        """曲目放進待播清單、補資料、進語音頻道、開始播（enqueue 和 enqueue_tracks 共用）
+
+        Put tracks into the queue, enrich, join voice and start playing (shared by enqueue and enqueue_tracks).
+        """
         st = self.state(guild.id)
         room = params.MAX_QUEUE - len(st.queue)
         if room <= 0:

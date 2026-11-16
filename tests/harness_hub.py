@@ -9,7 +9,7 @@ Needs ffmpeg (on PATH, or set the FFMPEG_PATH environment variable).
 
 通常由 run_all.py / run_relay.py 啟動，不用自己跑 / normally started by run_all.py / run_relay.py, you don't run it by hand
 """
-import asyncio, os, sys, types, json
+import asyncio, os, sys, types, json, time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 專案根目錄 / project root
 sys.path.insert(0, ROOT)
 import discord
@@ -98,6 +98,20 @@ async def main():
     MEMBERS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "members_test.json")
     if os.environ.get("KEEP_MEMBERS") != "1" and os.path.exists(MEMBERS_PATH): os.remove(MEMBERS_PATH)
     hub.members = Registry(MEMBERS_PATH)           # 測試專用的成員登錄檔（不碰正式的 members.json）
+    from musicbot.library import Library
+    LIB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "library_test.json")
+    if os.path.exists(LIB_PATH): os.remove(LIB_PATH)
+    hub.library = Library(LIB_PATH)                # 測試專用的歌單檔（不碰正式的 library.json）/ a throwaway library file (never the real library.json)
+    if os.environ.get("FAKE_SPOTIFY"):             # 假的 Spotify：不連網，帳號固定叫"測試帳號" / a fake Spotify: no network, the account is always "測試帳號"
+        from musicbot.spotify import Accounts, client as spc
+        SP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spotify_test.json")
+        if os.path.exists(SP_PATH): os.remove(SP_PATH)
+        hub.spotify = Accounts(SP_PATH)
+        async def _exchange(*a, **k): return {"access": "A", "refresh": "R", "expires": time.time() + 3600}
+        async def _get(session, access, path, **kw): return {"display_name": "測試帳號"}
+        async def _lists(session, access): return [{"id": "p1", "name": "Spotify 最愛", "count": 3, "image": "", "owner": "我"}]
+        async def _songs(session, access, pid): return [{"url": f"https://open.spotify.com/track/T{i}", "title": f"S{i} - 歌手", "duration": 200, "thumbnail": "", "uploader": "歌手", "search": f"S{i} 歌手"} for i in range(3)]
+        spc.exchange, spc.get, spc.list_playlists, spc.playlist_songs = _exchange, _get, _lists, _songs
     loop = asyncio.get_running_loop()
     guilds = {}
     hub.workers = []
@@ -176,15 +190,48 @@ async def main():
     async def fill(req):              # /fill?n=5000：直接在第一個播放器塞 n 首假曲目（測大清單的效能）/ put n fake tracks into the first player (large-queue performance tests)
         from musicbot.sources import Track
         n = int(req.query.get("n", 1000)); st = hub.workers[0].state(GID)
+        if req.query.get("clear"): st.queue.clear()      # clear=1：先清空再放 / clear=1: empty the queue first
         st.queue.extend(Track(url=f"https://www.bilibili.com/video/BV1xx{i:07d}", title=f"測試曲目 {i:04d} - 某某歌手 官方版 MV", requester="小明",
                               duration=180 + i % 120, uploader="上傳者", enriched=True) for i in range(n))
         hub.notify(GID)
         return web.json_response({"queue": len(st.queue)})
+    async def libseed(req):           # /libseed?u=1001&n=30&name=x：替這個人的歌單放一張有 n 首歌（含縮圖，不會去網路補資料）的歌單 / put a playlist of n songs (with thumbnails, nothing to enrich online) into this person's library
+        from musicbot.library import tree
+        u, n = req.query["u"], int(req.query.get("n", 30))
+        root = hub.library.root(u)
+        if req.query.get("reset"): root["children"].clear()
+        songs = [{"url": f"https://www.bilibili.com/video/BV1yy{i:07d}", "title": f"{req.query.get('name', '歌')} {i:03d}", "duration": 200, "thumbnail": f"https://i0.hdslb.com/x{i}.jpg", "uploader": "上傳者"} for i in range(n)]
+        node = tree.add_playlist(root, req.query.get("parent", "root"), req.query.get("name", "種子歌單"), songs)
+        return web.json_response({"id": node["id"], "tree": tree.outline(root)})
+    async def libfile(req):           # /libfile?u=1003：磁碟上這個人的歌單檔實際存了什麼 / what is really stored on disk for this person
+        from musicbot.library import Library, tree
+        root = Library(LIB_PATH).root(req.query["u"])
+        return web.json_response({"playlists": sum(1 for n in tree.walk(root) if n["type"] == "playlist"), "songs": tree.count_songs(root)})
+    async def scope_of(req):          # /scope_of：第一個播放器目前的資料夾循環狀態 / the first player's current folder-loop state
+        sc = hub.workers[0].state(GID).scope
+        return web.json_response(None if sc is None else {"mode": sc["mode"], "node": sc["node"]})
+    async def scope_test(req):        # /scope_test?u=1003：直接問 hub 資料夾循環下一輪放什麼 / ask the hub directly what a folder loop adds next
+        from musicbot.library import tree
+        user = req.query["u"]; root = hub.library.root(user)
+        for kid in list(root["children"]): root["children"].remove(kid)
+        folders = []
+        for name in "ABC":
+            f = tree.add_folder(root, "root", name)
+            tree.add_playlist(root, f["id"], name.lower(), [{"url": f"https://x/{name}1", "title": name + "1"}, {"url": f"https://x/{name}2", "title": name + "2"}])
+            folders.append(f)
+        one = {"mode": "folder", "user": user, "node": folders[0]["id"]}
+        again = [s["title"] for s in hub.library_refill(one)]
+        loop = {"mode": "folders", "user": user, "node": folders[0]["id"]}
+        order = ["".join(s["title"][0] for s in hub.library_refill(loop)[:1]) for _ in range(5)]
+        tree.delete(root, [folders[0]["id"]])
+        return web.json_response({"folder": {"same": again == ["A1", "A2"] and one["node"] == folders[0]["id"]},
+                                  "folders": {"order": order, "expect": ["B", "C", "A", "B", "C"]},
+                                  "gone": hub.library_refill({"mode": "folder", "user": user, "node": folders[0]["id"]})})
     async def poke(req):              # /poke?n=20：連續通知 n 次狀態改變（模擬有人進出頻道、補縮圖…）/ n state-change notifications in a row (people joining, thumbnails arriving...)
         for _ in range(int(req.query.get("n", 1))):
             hub.notify(GID); await asyncio.sleep(float(req.query.get("gap", 0.1)))
         return web.json_response({"ok": True})
-    dbg = web.Application(); dbg.add_routes([web.get("/tick", tick), web.get("/fill", fill), web.get("/poke", poke), web.get("/expire_hold", expire_hold), web.get("/shutdown", shutdown), web.get("/move", move), web.get("/token", token), web.get("/info", info),
+    dbg = web.Application(); dbg.add_routes([web.get("/tick", tick), web.get("/fill", fill), web.get("/poke", poke), web.get("/libfile", libfile), web.get("/scope_of", scope_of), web.get("/scope_test", scope_test), web.get("/libseed", libseed), web.get("/expire_hold", expire_hold), web.get("/shutdown", shutdown), web.get("/move", move), web.get("/token", token), web.get("/info", info),
         web.get("/revoke", revoke), web.get("/regdevice", regdevice),
         web.get("/restart_registry", restart_registry), web.get("/registry_file", registry_file)])
     r = web.AppRunner(dbg); await r.setup(); await web.TCPSite(r, "127.0.0.1", 8767).start()

@@ -1,7 +1,6 @@
 /* 渲染：把伺服器快照畫到畫面上（所有畫面更新的入口），與驗證畫面
    Rendering: draw a server snapshot (the single entry for screen updates), and the verify gate */
 import { syncBili } from "./bili.js";
-import { syncQueue } from "./cards.js";
 import { countEl, guildNameEl, loopBtns, qualityBtns, queuePanel } from "./dom.js";
 import { syncNow } from "./now.js";
 import { permBanner, syncLimit, syncPerms } from "./perms.js";
@@ -9,6 +8,7 @@ import { keepQueue, syncQueueMore } from "./queuewindow.js";
 import { tick } from "./seek.js";
 import { S } from "./store.js";
 import { playersBar, syncPlayers } from "./tabs.js";
+import { syncQueue } from "./virtuallist.js";
 import { $, PERF, setStatus, setText } from "./util.js";
 
 /* ------------------------------------------------ 請用專屬連結進來（驗證模式）/ Please use your personal link (verify mode) ---- */

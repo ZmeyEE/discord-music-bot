@@ -6,6 +6,7 @@ import { send } from "./net.js";
 import { render } from "./render.js";
 import { S } from "./store.js";
 import { $ } from "./util.js";
+import { firstDrawn } from "./virtuallist.js";
 
 /* ------------------------------------------------------------ 拖曳 / Drag & drop */
 // SortableJS 的共用設定 / options shared by every Sortable instance
@@ -78,11 +79,13 @@ export function deleteItem(item) {
 // The queue: sortable, and cards can be dragged out of it (to the trash / to "now playing").
 export const sortQueue = new Sortable(queueEl, {
   ...common,
+  draggable: ".card",              // 上下兩塊空白不能拖 / the two spacers can't be dragged
   group: { name: "cards", pull: true, put: false },
   onStart: startDrag,
   onEnd: (evt) => {
-    if (evt.to === evt.from && evt.oldIndex !== evt.newIndex) {
-      send({ type: "move", id: evt.item.dataset.id, index: evt.newIndex });
+    if (evt.to === evt.from && evt.oldDraggableIndex !== evt.newDraggableIndex) {
+      // 只畫出一部分卡片，所以要加上畫出範圍的起點才是整份清單裡的位置 / only part of the list is drawn, so add where the drawn range starts to get the position in the whole list
+      send({ type: "move", id: evt.item.dataset.id, index: firstDrawn() + evt.newDraggableIndex });
     } else if (evt.to === evt.from && releasedOverTrash(evt)) {
       deleteItem(evt.item);
     }

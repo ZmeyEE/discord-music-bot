@@ -19,7 +19,9 @@ from typing import TYPE_CHECKING
 import discord
 from discord import app_commands
 
+from .. import params
 from ..config import find_ffmpeg
+from . import audio
 from .controls import ControlsMixin
 from .enqueue import EnqueueMixin
 from .playback import PlaybackMixin
@@ -49,6 +51,7 @@ class PlayerBot(VoiceMixin, PlaybackMixin, RecoverMixin, EnqueueMixin, ControlsM
         self.tree = app_commands.CommandTree(self) if self.is_primary else None
         self.states: dict[int, GuildState] = {}
         self.ffmpeg = find_ffmpeg()
+        audio.has_resampler(self.ffmpeg, params.RESAMPLER)   # 啟動時先問好 ffmpeg 有沒有 soxr，結果會記住 / ask the ffmpeg build about soxr once at start-up; the answer is remembered
         self._enrich_sem: asyncio.Semaphore | None = None
         self._watch_task: asyncio.Task | None = None
         self._gateway_drop = float("-inf")   # 最近一次閘道斷線的時間（monotonic）/ when the gateway last dropped (monotonic)

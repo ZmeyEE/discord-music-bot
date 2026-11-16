@@ -35,3 +35,5 @@ ENV_FILE = BASE / ".env"                 # 機密設定（Token 等）/ secrets 
 COOKIE_FILE = BASE / "cookies.txt"       # Bilibili 登入 cookie（Netscape 格式，yt-dlp 讀取）/ Bilibili login cookie (Netscape format, read by yt-dlp)
 SETTINGS_FILE = BASE / "settings.json"   # 音質、Bilibili 帳號顯示資訊、後台簽章金鑰 / audio quality, Bilibili account info, dashboard signing secret
 MEMBERS_FILE = BASE / "members.json"     # 驗證過的 Discord 成員與他們的裝置（只存在執行機器人的這台電腦）/ verified Discord members and their devices (stored only on the machine running the bot)
+LIBRARY_FILE = BASE / "library.json"     # 每個人的歌單與資料夾（存在這台電腦）/ everyone's playlists and folders (stored on this machine)
+SPOTIFY_FILE = BASE / "spotify_tokens.json"   # 各人連結 Spotify 後的憑證（存在這台電腦，不上傳）/ the tokens after each person links Spotify (stored on this machine, never uploaded)
