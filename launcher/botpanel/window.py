@@ -9,6 +9,7 @@ The actions are in actions.py and the log area in logview.py; this file only pai
 from __future__ import annotations
 
 import queue
+import sys
 import tkinter as tk
 import webbrowser
 from pathlib import Path
@@ -45,6 +46,11 @@ class App(ActionsMixin, LogMixin):
         self.fonts = theme.Fonts(root)
 
         root.title(APP_TITLE)
+        if getattr(sys, "frozen", False):   # 打包成 exe 時，視窗和工作列用 exe 自己的圖示 / packaged exe: the window and taskbar use the exe's own icon
+            try:
+                root.iconbitmap(sys.executable)
+            except tk.TclError:
+                pass
         root.geometry("780x560")
         root.minsize(740, 440)
         root.protocol("WM_DELETE_WINDOW", self.on_close)
