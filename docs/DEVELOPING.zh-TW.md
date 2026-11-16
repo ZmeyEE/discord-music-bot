@@ -39,6 +39,7 @@ web/                   看板前端，原生 HTML / CSS / JS，不用建置
   i18n.js              看板語言
 tests/                 回歸測試（Discord 語音層用假的）
 launcher/              桌面啟動／關閉小視窗（tkinter，選用）
+  botpanel/            paths.py procs.py theme.py widgets.py window.py actions.py logview.py（配色在 theme.py，和看板一致）
 deploy/                中繼站的 systemd 服務
 ```
 

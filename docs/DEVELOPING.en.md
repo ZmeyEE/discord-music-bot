@@ -39,6 +39,7 @@ web/                   dashboard front-end, vanilla HTML / CSS / JS, no build st
   i18n.js              dashboard languages
 tests/                 regression tests (fake Discord voice layer)
 launcher/              tiny desktop start/stop window (tkinter, optional)
+  botpanel/            paths.py procs.py theme.py widgets.py window.py actions.py logview.py (colors in theme.py match the dashboard)
 deploy/                systemd service for the relay
 ```
 

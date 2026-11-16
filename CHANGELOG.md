@@ -20,6 +20,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow 
 - 全部參數集中到 `musicbot/params.py`，其他檔案只讀 `params.名稱` / every tunable parameter now lives in `musicbot/params.py`, other files only read `params.NAME`
 - 長檔案依功能拆開：`player/`、`hub/`、`sources/`、`health/`、`relay/`、`dashboard/`、`commands/`、`app.py` 拆出 `tuning.py` 與 `logging_setup.py`，最長的檔案約 210 行 / long files are split by feature, the longest file is about 210 lines
 - 網頁 `app.js`（1168 行）拆成 `web/js/` 的 16 個 ES 模組，最長 137 行 / the 1168-line `app.js` is split into 16 ES modules in `web/js/`, the longest is 137 lines
+- 桌面小視窗（`launcher/`）重建：配色、膠囊按鈕、半透明卡片和狀態燈都跟網頁看板一致，程式拆成 `launcher/botpanel/` 的 7 個小檔（最長 155 行），啟動／停止的邏輯不碰畫面，新增 `tests/launcher_unit.py`（23 項）/ the desktop window (`launcher/`) is rebuilt: colours, pill buttons, frosted cards and the status light match the dashboard; the code is split into 7 small files in `launcher/botpanel/` (the longest is 155 lines), the start / stop logic never touches the UI, and `tests/launcher_unit.py` (23 checks) is new
 - 行為沒有改：測試全過，網頁用瀏覽器實際操作過一遍（加歌、暫停、跳轉、分頁選單、刪除、換語言）/ no behavior change: all tests pass and the dashboard was driven in a real browser (add, pause, seek, tab menu, remove, switch language)
 
 ### 實測 / Measured
