@@ -9,6 +9,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 專案根
 sys.path.insert(0, ROOT)
 import discord
 from musicbot import health as H
+from musicbot import params
 from musicbot.health import StreamProbe, ProbedSource, HealthMonitor, Sample
 
 res = []
@@ -16,7 +17,7 @@ def check(n, ok, d=""): res.append(bool(ok)); print(("PASS" if ok else "FAIL"), 
 
 # ============ 探針：怎樣算一次卡頓 ============
 def feed(gaps, dts=None, warm=True):
-    p = StreamProbe(); t = p.born + (H.WARMUP + 0.5 if warm else 0.0)
+    p = StreamProbe(); t = p.born + (params.WARMUP + 0.5 if warm else 0.0)
     dts = dts or [0.001] * len(gaps)
     p.record(t, 0.001)
     for g, dt in zip(gaps, dts):

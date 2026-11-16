@@ -44,7 +44,6 @@ _COOKIE_NAMES = ("SESSDATA", "bili_jct", "DedeUserID", "DedeUserID__ckMd5", "sid
 
 # poll 回傳的狀態碼 / status codes returned by the poll endpoint
 CODE_OK, CODE_EXPIRED, CODE_SCANNED, CODE_WAITING = 0, 86038, 86090, 86101
-QR_LIFETIME = 180   # 秒；QR 碼的有效時間（Bilibili 約 3 分鐘）/ seconds a QR code stays valid (about 3 minutes)
 
 
 class BiliError(Exception):

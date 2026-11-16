@@ -9,6 +9,7 @@ import aiohttp
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 專案根目錄 / project root
 sys.path.insert(0, ROOT)
 from musicbot import relay as R
+from musicbot import params
 
 PORT = 8791
 BASE = f"http://127.0.0.1:{PORT}"
@@ -29,10 +30,10 @@ async def bad_worker(s, ip):
 async def main():
     rl = R.Relay(KEY, "127.0.0.1", PORT)
     await rl.start()
-    R.AUTH_LOCKOUT = 3.0   # 縮短封鎖時間方便測試
+    params.AUTH_LOCKOUT = 3.0   # 縮短封鎖時間方便測試
     async with aiohttp.ClientSession() as s:
         # 1. 安全標頭
-        for path in ("/", "/static/app.js", "/healthz", "/api/guilds", "/nope"):
+        for path in ("/", "/static/js/main.js", "/healthz", "/api/guilds", "/nope"):
             async with s.get(BASE + path) as r:
                 h = r.headers
                 ok = ("frame-ancestors 'none'" in h.get("Content-Security-Policy", "") and h.get("X-Content-Type-Options") == "nosniff"
@@ -44,7 +45,7 @@ async def main():
 
         # 2. 單一 IP 同時連線上限（瀏覽器端）
         socks = []
-        for i in range(R.MAX_PER_IP):
+        for i in range(params.MAX_PER_IP):
             socks.append(await s.ws_connect(f"{BASE}/ws/1", headers=xff("9.9.9.9")))
         try:
             await s.ws_connect(f"{BASE}/ws/1", headers=xff("9.9.9.9"))
@@ -63,7 +64,7 @@ async def main():
 
         # 3. 每分鐘新連線上限
         got429 = 0
-        for i in range(R.NEW_PER_MINUTE + 10):
+        for i in range(params.NEW_PER_MINUTE + 10):
             try:
                 x = await s.ws_connect(f"{BASE}/ws/1", headers=xff("7.7.7.7")); await x.close()
             except aiohttp.WSServerHandshakeError as e:
@@ -80,7 +81,7 @@ async def main():
 
         # 5. 握手失敗封鎖
         ip = "6.6.6.6"
-        for i in range(R.AUTH_FAIL_LIMIT):
+        for i in range(params.AUTH_FAIL_LIMIT):
             await bad_worker(s, ip)
         try:
             await s.ws_connect(f"{BASE}/relay", headers=xff(ip))
@@ -105,7 +106,7 @@ async def main():
         # 6. 同時握手上限（不回應的連線佔位）
         ip = "4.4.4.4"
         holders = []
-        for i in range(R.MAX_HANDSHAKES_PER_IP):
+        for i in range(params.MAX_HANDSHAKES_PER_IP):
             x = await s.ws_connect(f"{BASE}/relay", headers=xff(ip)); await x.receive_json(); holders.append(x)
         try:
             await s.ws_connect(f"{BASE}/relay", headers=xff(ip))
@@ -118,7 +119,7 @@ async def main():
 
         # 7. 瀏覽器訊息大小上限
         x = await s.ws_connect(f"{BASE}/ws/1", headers=xff("3.3.3.3"))
-        await x.send_str("x" * (R.MAX_MSG_BYTES + 10))
+        await x.send_str("x" * (params.MAX_MSG_BYTES + 10))
         m = None
         for _ in range(5):                       # 先讀掉伺服器送的"離線"通知
             m = await asyncio.wait_for(x.receive(), 5)

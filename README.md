@@ -256,7 +256,7 @@ cloudflared tunnel --url http://localhost:8765
 - **一次只停一個，而且有緩衝**：停掉一個後 90 秒內不再判斷；停掉之後如果**還是卡**，就代表原因不在新加入的頻道，**不會繼續停**（不可能一次卡頓就把頻道停光），要等下一次又有新頻道加入才重新判斷，永遠至少保留 1 個頻道
 - **每停一個就公告**：在**看板上方**與**每個語音頻道的聊天室**說明是哪個頻道、為什麼（CPU 使用率偏高／處理被拖慢／編碼跟不上／到 Discord 的網路延遲偏高）、加入前後各卡了幾次、剩幾個頻道，被停的頻道會離開並清空待播清單（想聽請重新點歌），其他頻道不受影響
 - **停掉後 10 分鐘不再派新頻道進來**（避免剛停就又加回去再卡一次），之後自動恢復
-- 數字都在 [`musicbot/health.py`](musicbot/health.py) 最上面，可以依你的電腦調整
+- 數字都在 [`musicbot/params.py`](musicbot/params.py)（卡頓偵測那一段），可以依你的電腦調整
 
 **閒置自動離開**：頻道內只剩機器人 120 秒、或沒在播也沒待播 300 秒，會自動離開，讓分身可以被別的頻道接手（可在 `.env` 調整或設 0 關閉）
 
@@ -330,14 +330,15 @@ Every file starts with a bilingual (中文 / English) overview and each function
 - `docs/`：開發者指南（中文／English）/ developer guides (中文 / English)
 - `tests/`：回歸測試（Discord 語音層用假的）/ regression tests (fake Discord voice layer)
 - `deploy/`、`start-relay.sh`、`requirements-relay.txt`：中繼站的部署範本 / deployment templates for the relay
-- `musicbot/`
-  - `relay.py` 中繼站（只依賴 aiohttp）；`relay_client.py` 家裡的機器人連線到中繼站 / the relay (aiohttp only); the home-side client that dials it
-  - `app.py` 啟動流程；`config.py` 設定；`paths.py` 檔案位置（支援打包成 exe）/ start-up flow; settings; file locations (exe-aware)
-  - `player.py` 播放引擎（一個機器人帳號一個）；`hub.py` 協調者（路由、權限、快照）/ playback engine (one per bot account); the coordinator (routing, permissions, snapshots)
-  - `commands.py` 斜線指令；`dashboard.py` 網頁後台伺服器；`auth.py` 簽章連結 / slash commands; dashboard server; signed links
-  - `sources.py` 來源解析（yt-dlp）；`bilibili.py` 掃碼登入與帳號 / source resolving (yt-dlp); Bilibili QR login and account
-  - `addclone.py` 一鍵新增分身（`add-clone.bat`）；`health.py` 播放卡頓偵測；`members.py` 記住的裝置；`netinfo.py` 找出可分享的區網／虛擬網路位址；`webutil.py` HTTP 安全標頭 / add a clone; stutter detector; remembered devices; shareable LAN/VPN addresses; HTTP security headers
+- `musicbot/`（一個資料夾 = 一個功能，一個檔案只做一件事、盡量短 / one folder = one feature, one file does one thing and stays short）
+  - `params.py` **所有可以調的參數都在這一個檔案** / **every tunable parameter lives in this one file**
+  - `app.py` 啟動流程；`tuning.py` 啟動時的檢查與調整；`logging_setup.py` 記錄檔；`config.py` 設定；`paths.py` 檔案位置（支援打包成 exe）/ start-up flow; start-up checks and tweaks; logging; settings; file locations (exe-aware)
+  - `player/` 播放引擎（一個機器人帳號一個）；`hub/` 協調者（路由、權限、快照）/ playback engine (one per bot account); the coordinator (routing, permissions, snapshots)
+  - `sources/` 來源解析（yt-dlp、Spotify）；`commands/` 斜線指令；`dashboard/` 網頁後台伺服器 / source resolving (yt-dlp, Spotify); slash commands; dashboard server
+  - `health/` 播放卡頓偵測；`relay/` 中繼站（只依賴 aiohttp）；`relay_client.py` 家裡的機器人連線到中繼站 / stutter detector; the relay (aiohttp only); the home-side client that dials it
+  - `auth.py` 簽章連結；`bilibili.py` 掃碼登入與帳號；`members.py` 記住的裝置；`addclone.py` 一鍵新增分身（`add-clone.bat`）；`netinfo.py` 找出可分享的區網／虛擬網路位址；`webutil.py` HTTP 安全標頭 / signed links; Bilibili QR login and account; remembered devices; add a clone; shareable LAN/VPN addresses; HTTP security headers
 - `web/`：看板前端（原生 HTML／CSS／JS，無需建置）/ dashboard front-end (vanilla HTML / CSS / JS, no build step)
+  - `js/` ES 模組，從 `main.js` 看起；`i18n.js` 看板語言 / ES modules, start with `main.js`; `i18n.js` holds the dashboard languages
   - 圖示為手繪 SVG，集中在 `index.html` 的圖示庫 / icons are hand-drawn SVGs collected in the sprite at the top of `index.html`
   - 配色取自"黃昏雲海"，色票定義在 `style.css` 最上方的 `:root` / the "dusk sea of clouds" palette is defined in `:root` at the top of `style.css`
 

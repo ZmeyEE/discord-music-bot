@@ -19,10 +19,10 @@ import aiohttp
 
 from .hub import Hub
 from .relay import proof
+from . import params
 
 log = logging.getLogger("musicbot.relay")
 
-HELLO_INTERVAL = 30.0   # 沒有變化時，每隔幾秒送一次心跳 / seconds between heartbeat "hello" messages when nothing changed
 
 
 class RelayClient:
@@ -114,7 +114,7 @@ class RelayClient:
         last, sent_at = None, 0.0
         while True:
             payload = {"t": "hello", "open": self.hub.open_access, "guilds": self.hub.guild_list()}
-            if payload != last or time.monotonic() - sent_at >= HELLO_INTERVAL:
+            if payload != last or time.monotonic() - sent_at >= params.HELLO_INTERVAL:
                 await ws.send_json(payload)
                 last, sent_at = payload, time.monotonic()
             await asyncio.sleep(2.0)

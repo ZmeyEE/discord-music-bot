@@ -15,6 +15,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 專案根
 sys.path.insert(0, ROOT)
 import discord
 from musicbot import player as P
+from musicbot import params
 from musicbot.app import cap_reconnect_delay
 from musicbot.player import GuildState, PlayerBot
 
@@ -90,7 +91,7 @@ async def main():
     check("R1 歌放回待播最前面", [x.id for x in st.queue] == ["a", "b"], [x.id for x in st.queue])
     check("R2 記住進度約 42 秒", 41 <= st.start_offset <= 44 and st.start_offset_id == "a", st.start_offset)
     check("R3 啟動了回頻道的背景工作", st.recovering and 1 in w._recover_tasks)
-    with mock.patch.object(P.asyncio, "sleep", fast_sleep):
+    with mock.patch.object(asyncio, "sleep", fast_sleep):
         await w._recover_tasks[1]
     check("R4 恢復後回頻道並開始播", w._connected and w._played and g.voice_client is not None)
     check("R5 回來後有發訊息、狀態清掉", "回來了" in w._said and not st.recovering and 1 not in w._recover_tasks)
@@ -103,7 +104,7 @@ async def main():
     check("R6 語音還在時照舊處理，不救援", not st.recovering and not st.queue)
 
     # 3) 語音被踢但閘道一直很健康（人踢的）：不救援
-    g = Guild(); w = make(g, drop_ago=P.RECOVER_WINDOW + 5); st = w.state(1)
+    g = Guild(); w = make(g, drop_ago=params.RECOVER_WINDOW + 5); st = w.state(1)
     st.current, st.started_at, st.queue = t, time.monotonic() - 10, deque()
     await w.on_track_end(g, None)
     check("R7 閘道沒出事時被踢（人踢的）：不自動回去", not st.recovering and not st.queue)
@@ -114,7 +115,7 @@ async def main():
     await w.on_track_end(g, None)
     async def people_back():
         await REAL_SLEEP(0.05); g.channel.members = [SimpleNamespace(bot=False)]
-    with mock.patch.object(P.asyncio, "sleep", fast_sleep):
+    with mock.patch.object(asyncio, "sleep", fast_sleep):
         await asyncio.gather(w._recover_tasks[1], people_back())
     check("R8 頻道沒人先等，有人回來才進頻道", g.voice_client is not None and w._played)
 
@@ -124,7 +125,7 @@ async def main():
     await w.on_track_end(g, None)
     task = w._recover_tasks[1]
     await w.stop(g)
-    with mock.patch.object(P.asyncio, "sleep", fast_sleep):
+    with mock.patch.object(asyncio, "sleep", fast_sleep):
         await task
     check("R9 救援中 stop：清掉進度、不進頻道", g.voice_client is None and not st.recovering and st.start_offset == 0.0)
 

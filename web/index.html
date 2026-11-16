@@ -1,6 +1,6 @@
 <!doctype html>
-<!-- 音樂看板（單頁應用），邏輯在 /static/app.js，樣式在 /static/style.css
-     Music dashboard (single-page app). Logic: /static/app.js, styles: /static/style.css.
+<!-- 音樂看板（單頁應用），邏輯在 /static/js/（進入點 main.js），樣式在 /static/style.css
+     Music dashboard (single-page app). Logic: /static/js/ (entry point main.js), styles: /static/style.css.
      版面 / Layout: top bar (quality + loop) -> player tabs -> banners -> board (now playing | queue + add box | trash)
      -> dialogs and gates (Bilibili login, verify, invalid link, server picker) -> toast. -->
 <html lang="zh-Hant">
@@ -249,6 +249,6 @@
 
 <script src="/static/i18n.js"></script>
 <script src="/static/vendor/Sortable.min.js"></script>
-<script src="/static/app.js"></script>
+<script type="module" src="/static/js/main.js"></script>
 </body>
 </html>

@@ -4,6 +4,7 @@ Unit tests for source resolving (no Discord, no network): the 5000 limit, Spotif
 用 tests/run_all.py 執行 / run it with tests/run_all.py
 """
 import asyncio
+import urllib.request
 import json
 import os
 import sys
@@ -14,6 +15,8 @@ from unittest import mock
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 專案根目錄 / project root
 sys.path.insert(0, ROOT)
 from musicbot import player as P
+from musicbot.player import enqueue as E
+from musicbot import params
 from musicbot import sources as S
 from musicbot.player import PlayerBot
 
@@ -21,7 +24,7 @@ res = []
 def check(n, ok, d=""): res.append(bool(ok)); print(("PASS" if ok else "FAIL"), n, str(d)[:190], flush=True)
 
 # ============ 輸入辨識 ============
-check("N1 合集上限 5000", S.MAX_PLAYLIST == 5000 and P.MAX_QUEUE == 5000, (S.MAX_PLAYLIST, P.MAX_QUEUE))
+check("N1 合集上限 5000", params.MAX_PLAYLIST == 5000 and params.MAX_QUEUE == 5000, (params.MAX_PLAYLIST, params.MAX_QUEUE))
 TRK = "4cOdK2wGLETKBW3PvgPWqT"
 check("N2 Spotify 網址（含 ?si= 追蹤參數）", S.normalize_query(f"https://open.spotify.com/track/{TRK}?si=abc").startswith("https://open.spotify.com/track/"))
 check("N3 spotify: 這種 URI 也認得", S.normalize_query(f"spotify:track:{TRK}") == f"https://open.spotify.com/track/{TRK}")
@@ -40,7 +43,7 @@ class Resp:
     def __exit__(self, *a): return False
 
 def with_page(entity, fn):
-    with mock.patch.object(S.urllib.request, "urlopen", lambda req, timeout=0: Resp(page(entity))):
+    with mock.patch.object(urllib.request, "urlopen", lambda req, timeout=0: Resp(page(entity))):
         return fn()
 
 img = {"image": [{"url": "http://x/small", "maxWidth": 64}, {"url": "http://x/mid", "maxWidth": 300}, {"url": "http://x/big", "maxWidth": 640}]}
@@ -61,7 +64,7 @@ try:
     check("S5 空清單要給明確錯誤", False)
 except RuntimeError as exc:
     check("S5 空清單要給明確錯誤", "讀不到任何歌" in str(exc), exc)
-with mock.patch.object(S.urllib.request, "urlopen", lambda req, timeout=0: Resp("<html>nothing</html>")):
+with mock.patch.object(urllib.request, "urlopen", lambda req, timeout=0: Resp("<html>nothing</html>")):
     try:
         S.resolve_spotify("track", TRK, "me"); check("S6 頁面格式變了要給明確錯誤", False)
     except RuntimeError as exc:
@@ -90,7 +93,7 @@ def make():
 async def queue_cap():
     g = SimpleNamespace(id=1)
     def tracks(n): return [S.Track(url=f"u{i}", title=f"t{i}", requester="me", thumbnail="x") for i in range(n)]
-    with mock.patch.object(P, "resolve_tracks", lambda q, r: tracks(60)), mock.patch.object(P, "MAX_QUEUE", 100):
+    with mock.patch.object(E, "resolve_tracks", lambda q, r: tracks(60)), mock.patch.object(params, "MAX_QUEUE", 100):
         w = make()
         added, note = await w._enqueue(g, "q", "me", None, "end")
         check("Q1 沒滿：全部加入、沒有提示", len(added) == 60 and note is None and len(w.state(1).queue) == 60)
@@ -98,7 +101,7 @@ async def queue_cap():
         check("Q2 只剩 40 個位置：只加 40 首並提示", len(added) == 40 and note and "40" in note and len(w.state(1).queue) == 100, note)
         added, note = await w._enqueue(g, "q", "me", None, "end")
         check("Q3 滿了：一首都不加、有提示", added == [] and note and "滿了" in note and len(w.state(1).queue) == 100, note)
-    with mock.patch.object(P, "resolve_tracks", lambda q, r: tracks(5000)):
+    with mock.patch.object(E, "resolve_tracks", lambda q, r: tracks(5000)):
         w = make()
         added, note = await w._enqueue(g, "q", "me", None, "end")
         check("Q4 一次加 5000 首", len(added) == 5000 and note is None and len(w.state(1).queue) == 5000)
@@ -107,7 +110,7 @@ async def queue_cap():
     async def fake_many(self, gid, ts): started.append(len(ts))
     sp = [S.Track(url=f"s{i}", title="s", requester="me", search="s") for i in range(5)]
     plain = [S.Track(url=f"p{i}", title="", requester="me") for i in range(300)]
-    with mock.patch.object(P, "resolve_tracks", lambda q, r: sp + plain), mock.patch.object(PlayerBot, "enrich_many", fake_many):
+    with mock.patch.object(E, "resolve_tracks", lambda q, r: sp + plain), mock.patch.object(PlayerBot, "enrich_many", fake_many):
         w = make()
         await w._enqueue(g, "q", "me", None, "end")
         await asyncio.sleep(0)
@@ -121,7 +124,7 @@ async def queue_cap():
     w = make(); st = w.state(1)
     st.queue = deque(S.Track(url=f"p{i}", title="t", requester="me") for i in range(1500))
     d = w.player_state(SimpleNamespace(id=1, voice_client=None))
-    check("Q7 看板最多收到前 1000 首，總數另外給", len(d["queue"]) == P.QUEUE_VIEW == 1000 and d["queue_total"] == 1500, (len(d["queue"]), d["queue_total"]))
+    check("Q7 看板最多收到前 1000 首，總數另外給", len(d["queue"]) == params.QUEUE_VIEW == 1000 and d["queue_total"] == 1500, (len(d["queue"]), d["queue_total"]))
 
 asyncio.run(queue_cap())
 print(f"{sum(res)}/{len(res)} 通過", flush=True)

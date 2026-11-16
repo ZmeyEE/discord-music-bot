@@ -19,11 +19,10 @@ import shutil
 from pathlib import Path
 
 from .paths import BASE, ENV_FILE, SETTINGS_FILE
+from . import params
 
 log = logging.getLogger("musicbot")
 
-QUALITY_CHOICES = (128, 192, 256, 320, 510)   # 看板與 /quality 的音質選項（Opus 位元率 kbps；510 是 Opus 規格上限）/ quality choices for the dashboard and /quality (Opus kbps; 510 is the Opus spec maximum)
-DEFAULT_BITRATE_KBPS = 192                    # 沒有任何設定時的預設音質 / default when nothing is configured
 
 _settings: dict = {}   # settings.json 的記憶體副本 / in-memory copy of settings.json
 
@@ -188,14 +187,14 @@ def quality_for(guild_id: int | str) -> int:
     > ``AUDIO_BITRATE`` in .env > the default 192 kbps.
     """
     saved = (_settings.get("quality") or {}).get(str(guild_id))
-    if isinstance(saved, int) and saved in QUALITY_CHOICES:
+    if isinstance(saved, int) and saved in params.QUALITY_CHOICES:
         return saved
-    return max(8, min(510, env_int("AUDIO_BITRATE", DEFAULT_BITRATE_KBPS)))
+    return max(8, min(510, env_int("AUDIO_BITRATE", params.DEFAULT_BITRATE_KBPS)))
 
 
 def set_quality_for(guild_id: int | str, kbps: int) -> bool:
     """記住某伺服器的音質；不在選項內回傳 False / Remember a server's quality; returns False if ``kbps`` isn't an allowed choice."""
-    if kbps not in QUALITY_CHOICES:
+    if kbps not in params.QUALITY_CHOICES:
         return False
     by = dict(_settings.get("quality") or {})
     by[str(guild_id)] = kbps

@@ -26,11 +26,10 @@ import os
 import secrets
 import time
 from pathlib import Path
+from . import params
 
 log = logging.getLogger("musicbot")
 
-DEVICE_TTL = 90 * 24 * 3600     # 裝置憑證多久沒用就失效（每次使用會順延）/ a device token expires after this long unused (each use extends it)
-SEEN_RESOLUTION = 3600          # "最後使用"最多每小時寫一次檔 / "last seen" is written to disk at most once per hour
 
 
 def _h(token: str) -> str:
@@ -88,11 +87,11 @@ class Registry:
         if rec is None:
             return None
         now = time.time()
-        if now - rec["seen"] > DEVICE_TTL:
+        if now - rec["seen"] > params.DEVICE_TTL:
             del self.devices[key]
             self._save()
             return None
-        if now - rec["seen"] > SEEN_RESOLUTION:
+        if now - rec["seen"] > params.SEEN_RESOLUTION:
             rec["seen"] = now
             self._save()
         return rec

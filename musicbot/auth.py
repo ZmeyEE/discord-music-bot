@@ -21,8 +21,8 @@ import hmac
 import json
 import time
 from dataclasses import dataclass
+from . import params
 
-DEFAULT_TTL = 12 * 3600   # 12 小時；過期後再輸入一次 /help 即可 / 12 hours; type /help again after it expires
 
 
 @dataclass(frozen=True)
@@ -54,7 +54,7 @@ def _sign(secret: str, body: str) -> str:
 # ============================================================
 # 簽發與驗證 / Issue and verify
 # ============================================================
-def make_token(secret: str, guild_id: int, user_id: int, name: str, ttl: int = DEFAULT_TTL) -> str:
+def make_token(secret: str, guild_id: int, user_id: int, name: str, ttl: int = params.DEFAULT_TTL) -> str:
     """簽出一組憑證，名稱最多保留 32 字
 
     Issue a token for (guild, user). The display name is capped at 32 characters;

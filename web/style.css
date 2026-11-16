@@ -94,9 +94,11 @@ h1, h2, p { margin: 0; font-weight: 400; }
 .controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px 14px; }
 
 /* 語言選單：下拉選單，底下一行小字 Language / language menu: a dropdown with a small "Language" caption under it */
-.lang { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+/* 小標用絕對定位掛在選單下面，不佔高度，選單才會和左邊兩個分段控制（音質、循環）上下對齊 / the caption hangs under the menu with absolute positioning and takes no height, so the menu lines up with the two segmented controls */
+.lang { position: relative; display: flex; align-self: stretch; }
+.lang-cap { position: absolute; top: 100%; left: 0; right: 0; margin-top: 2px; text-align: center; }
 .lang-select {
-  padding: 7px 28px 7px 14px; border-radius: 999px; font: inherit; font-size: .86rem; color: var(--ink); cursor: pointer;
+  height: 100%; min-height: 44px; padding: 0 30px 0 16px; border-radius: 999px; font: inherit; font-size: .86rem; color: var(--ink); cursor: pointer;
   background: rgba(255, 255, 255, .5); border: 1px solid var(--glass-line); box-shadow: 0 4px 14px rgba(84, 115, 159, .12);
   appearance: none; -webkit-appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, var(--ink-2) 50%), linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);

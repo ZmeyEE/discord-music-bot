@@ -11,19 +11,32 @@ Version: **1.1.0** · License: [Unlicense](../LICENSE) (public domain, do whatev
 ```
 bot.py                 entry point, only calls musicbot.app.main()
 musicbot/
+  params.py            every tunable number in one file (see section 2)
   app.py               start-up: read config, make Hub, dashboard, relay client, health monitor, log in every bot
-  hub.py               the brain: permissions, snapshots for the dashboard, actions (add, skip, seek...)
-  player.py            one Discord bot account = one PlayerBot (queue, ffmpeg, voice)
-  sources.py           yt-dlp: URL / keywords -> tracks -> audio stream
-  bilibili.py          Bilibili QR login, account info
-  dashboard.py         local web server (static files + WebSocket) and DashboardCore
-  relay.py             optional relay (VPS / Raspberry Pi), only forwards messages
-  relay_client.py      the bot at home dials out to the relay
-  health.py            stutter detector, stops channels one by one (newest first) when the PC can't keep up
-  commands.py          slash commands (/play /help /quality ...)
+  tuning.py            start-up checks and tweaks (davey version, reconnect cap, Windows priority)
+  logging_setup.py     log files, tokens masked
+  config.py paths.py   .env, settings.json, ffmpeg lookup, file locations
   auth.py members.py   signed links, remembered devices (hash only)
-  config.py paths.py   .env, settings.json, quality, ffmpeg lookup, file locations
+  bilibili.py          Bilibili QR login, account info
+  webutil.py netinfo.py addclone.py   security headers, LAN address, add-clone helper
+  sources/             URL / keywords / Spotify -> tracks -> audio stream (yt-dlp)
+    tracks.py recognize.py resolve.py spotify.py match.py stream.py
+  player/              one Discord bot account = one PlayerBot
+    state.py voice.py playback.py recover.py enqueue.py controls.py snapshot.py bot.py
+  hub/                 the brain: who may control, which bot plays, snapshots, actions
+    models.py identity.py routing.py streams.py snapshot.py actions.py bili.py core.py
+  health/              stutter detector, stops channels (newest first) when the PC can't keep up
+    probe.py ledger.py monitor.py
+  commands/            slash commands (/play /help /quality ...)
+    helpers.py info.py voice.py controls.py
+  dashboard/           local web server (static files + WebSocket) and DashboardCore
+    session.py core.py server.py
+  relay/               optional relay (VPS / Raspberry Pi), only forwards messages
+    util.py limits.py worker.py browser.py server.py cli.py
+  relay_client.py      the bot at home dials out to the relay
 web/                   dashboard front-end, vanilla HTML / CSS / JS, no build step
+  js/                  ES modules, start with main.js, read from the bottom up (util / store / dom first)
+  i18n.js              dashboard languages
 tests/                 regression tests (fake Discord voice layer)
 launcher/              tiny desktop start/stop window (tkinter, optional)
 deploy/                systemd service for the relay
@@ -31,6 +44,18 @@ deploy/                systemd service for the relay
 
 Rule of thumb: **one Discord bot account = one voice channel per server**, so extra channels need clone accounts
 (`add-clone.bat`), and `Hub` coordinates all of them
+
+How the code is cut: each folder is one feature, each file does one thing and stays short (about 200 lines at most)
+A class that grew big is split into mixins (`VoiceMixin`, `PlaybackMixin`...) and assembled in `bot.py` / `core.py`, so a method keeps its `self.` and nothing else changed
+Read from the bottom up: small helpers and data classes first, then the features, the assembling file last
+
+### Tuning parameters (`musicbot/params.py`)
+
+Every number you may want to change is in this one file: audio quality choices, queue and playlist limits, thumbnail filling,
+Spotify matching tolerance, idle auto-leave, reconnect and recovery times, every threshold of the stutter detector, dashboard
+and relay limits, token lifetimes. Each one has a comment, save and restart the bot
+
+Values marked `ENV` can also be set in `.env` (`.env` wins). Other modules read `params.NAME` at use time, so never copy a number into another file
 
 ## 2. Set up
 
@@ -74,7 +99,7 @@ Everything visual is in `web/style.css`, the colors are tokens at the very top
 - **Palette / text / buttons / card color**: edit the tokens in `:root`, every part of the page follows
 - **Background**: the sky is a gradient on `body::before` (a fixed layer, painted once so scrolling and dragging stay smooth), change the `linear-gradient(...)` and the two `radial-gradient(...)` there
 - **Fonts**: `--font` and `--font-num`, the Google Fonts `<link>` lines are at the top of `web/index.html` (remove them if you don't want the browser to contact Google, it falls back to system fonts)
-- **Icons**: hand-drawn SVG sprite at the top of `web/index.html`, used as `<svg class="i"><use href="#i-name"/></svg>` (or `icon("name")` in `app.js`)
+- **Icons**: hand-drawn SVG sprite at the top of `web/index.html`, used as `<svg class="i"><use href="#i-name"/></svg>` (or `icon("name")` in `web/js/util.js`)
 - Keep text contrast readable (the default text color is > 7:1, white on buttons > 4.5:1)
 - No build step, just save the file and refresh the browser
 
@@ -97,8 +122,8 @@ A language change is saved in the browser (`localStorage` key `mb_lang`) and the
 
 | Where | What |
 | --- | --- |
-| `musicbot/commands.py` | slash command names, descriptions, replies |
-| `musicbot/hub.py` `player.py` `dashboard.py` `health.py` `relay.py` | announcements, errors, and the notices shown on the dashboard |
+| `musicbot/commands/` | slash command names, descriptions, replies |
+| `musicbot/hub/` `player/` `dashboard/` `health/` `relay/` | announcements, errors, and the notices shown on the dashboard |
 
 1. **Server replies**: move the strings into one `messages.py` keyed by id, with the language chosen by a `.env` setting (for example `BOT_LANG=en`)
 2. **Slash commands**: discord.py supports command localization (`app_commands.locale_str` + a `Translator`)
@@ -112,13 +137,13 @@ URL --> sources.resolve_tracks --> queue --> player.ensure_playing --> sources.e
 ```
 
 - **Which track yt-dlp picks**: `sources.extract_stream`, the `"format"` string, now `bestaudio[acodec=flac]/bestaudio[acodec!*=ec-3]/bestaudio/best` (lossless FLAC if the account can get it, then best normal track, skipping Dolby E-AC-3 because down-mixing makes it worse)
-- **Bilibili login / premium (大會員)**: `bilibili.py` writes `cookies.txt`, `sources.py` hands it to yt-dlp, a premium account is what unlocks lossless Hi-Res (this path is **not tested** by the author, no premium account)
+- **Bilibili login / premium (大會員)**: `bilibili.py` writes `cookies.txt`, `sources/tracks.py` hands it to yt-dlp, a premium account is what unlocks lossless Hi-Res (this path is **not tested** by the author, no premium account)
 - **How ffmpeg is called**: `player.PlayerBot._play_stream`
   - `before_options`: reconnect flags, request headers, `-ss` for seeking (before `-i` = fast seek)
   - `options="-vn"`: drop video, put extra output flags here, for example a loudness filter `-af loudnorm`
   - No codec is given, so discord.py re-encodes with libopus at the bitrate we pass (Discord only accepts Opus, so there is always one re-encode, the goal is "best source → highest Opus bitrate")
 - **Bitrate**: `config.target_bitrate()` = the higher of the server's quality setting and the voice channel's own bitrate, clamped to Opus' 8 - 510 kbps, choices in `config.QUALITY_CHOICES`
-- **Stutter detection**: `health.py` wraps the audio source (`probe_source`) and only measures packet timing, it never changes the audio, keep it that way when you change the path
+- **Stutter detection**: `health/probe.py` wraps the audio source (`probe_source`) and only measures packet timing, it never changes the audio, keep it that way when you change the path
 - After any change, listen to it, then run `tests\run_all.py quality` and `seek`
 
 Gotchas: `davey` must stay `<0.2` with discord.py 2.7.x (otherwise the bot joins voice but nobody hears anything), sites change often so try `update-ytdlp.bat` first when searching or playing breaks
@@ -144,8 +169,8 @@ Browser → server (`Hub.handle_action` and `DashboardCore`):
 Ideas:
 
 - **Other music source / other chat platform**: keep `web/` as is, write a backend that serves `web/` plus `/ws/<id>` and builds the same `state` object
-- **Only the card look**: copy `.card` and its children from `web/style.css`, `makeCard()` in `web/app.js` and the palette tokens, they have no dependency on the music code
-- **Drag to reorder / drag to the trash**: see the Sortable setup in `app.js` and `.trash` in the CSS
+- **Only the card look**: copy `.card` and its children from `web/style.css`, `makeCard()` in `web/js/cards.js` and the palette tokens, they have no dependency on the music code
+- **Drag to reorder / drag to the trash**: see the Sortable setup in `web/js/dragdrop.js` and `.trash` in the CSS
 - The card UI is also available as a standalone library: [dusk-cards](https://github.com/ZmeyEE/dusk-cards) (vanilla JS + CSS, public domain)
 
 ## 8. Security rules for contributors

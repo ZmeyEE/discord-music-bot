@@ -16,6 +16,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow 
 - 補縮圖改成先補前 50 首，之後播到哪補到哪，不再一次打幾千次站方 / thumbnails are filled for the first 50, then as songs get close, instead of thousands of requests at once
 - PyNaCl 升到 1.6.2（修掉 pip-audit 的 2 個已知漏洞），不再用 `discord.py[voice]`，因為它把 PyNaCl 鎖在 `<1.6` / PyNaCl 1.6.2 (fixes the 2 known issues pip-audit reported), `discord.py[voice]` is no longer used because it pins PyNaCl `<1.6`
 
+### 重構 / Refactor
+- 全部參數集中到 `musicbot/params.py`，其他檔案只讀 `params.名稱` / every tunable parameter now lives in `musicbot/params.py`, other files only read `params.NAME`
+- 長檔案依功能拆開：`player/`、`hub/`、`sources/`、`health/`、`relay/`、`dashboard/`、`commands/`、`app.py` 拆出 `tuning.py` 與 `logging_setup.py`，最長的檔案約 210 行 / long files are split by feature, the longest file is about 210 lines
+- 網頁 `app.js`（1168 行）拆成 `web/js/` 的 16 個 ES 模組，最長 137 行 / the 1168-line `app.js` is split into 16 ES modules in `web/js/`, the longest is 137 lines
+- 行為沒有改：測試全過，網頁用瀏覽器實際操作過一遍（加歌、暫停、跳轉、分頁選單、刪除、換語言）/ no behavior change: all tests pass and the dashboard was driven in a real browser (add, pause, seek, tab menu, remove, switch language)
+
 ### 實測 / Measured
 - i5-12400F 上 120 個頻道同時送包：Python 約 30% 單核，沒有任何包遲到超過 40 ms / 120 simultaneous channels on an i5-12400F: Python about 30% of one core, no packet later than 40 ms
 - 同時播放的頻道數就是 bot 帳號數，沒有人為上限，要更多頻道就加分身 / the number of simultaneous channels equals the number of bot accounts, there is no artificial cap, add clones for more
