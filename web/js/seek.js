@@ -74,7 +74,8 @@ export function makeSeekBar(c) {
   seek.addEventListener("keydown", (e) => {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
     e.preventDefault();
-    const now = S.state && S.state.current ? S.state.current.position + (performance.now() - S.recvAt) / 1000 : 0;
+    const c = S.state && S.state.current;
+    const now = c ? c.position + (S.state.paused || c.loading ? 0 : (performance.now() - S.recvAt) / 1000) : 0;     // 暫停中位置不會動 / a paused position does not move
     commit(now + (e.key === "ArrowRight" ? 5 : -5));
   });
   return seek;

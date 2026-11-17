@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from pathlib import Path
 
+from .. import jsonfile
 from . import tree
 
 log = logging.getLogger("musicbot")
@@ -25,11 +25,9 @@ class Library:
     def __init__(self, path: Path | str) -> None:
         self.path = Path(path)
         self.users: dict[str, dict] = {}
-        try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
-            self.users = {str(k): v for k, v in dict(data.get("users", {})).items() if isinstance(v, dict) and v.get("type") == "folder"}
-        except (OSError, ValueError):
-            pass                                   # 沒有檔案或壞掉就當作空的 / missing or corrupt: start empty
+        users = jsonfile.read_dict(self.path).get("users", {})      # 沒有檔案 = 空的；壞掉會先備份 / missing = empty; a broken file is kept aside first
+        if isinstance(users, dict):
+            self.users = {str(k): v for k, v in users.items() if isinstance(v, dict) and v.get("type") == "folder"}
 
     def root(self, user: str) -> dict:
         """這個人的樹；沒有就建一棵空的（還不存檔，等有改動才存）/ This person's tree; an empty one is created (not saved until something changes)."""
@@ -39,9 +37,7 @@ class Library:
 
     def save(self) -> None:
         """原子寫入：先寫暫存檔再取代 / Atomic write: temp file first, then replace."""
-        tmp = self.path.with_suffix(".tmp")
         try:
-            tmp.write_text(json.dumps({"users": self.users}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-            os.replace(tmp, self.path)
+            jsonfile.write_text(self.path, json.dumps({"users": self.users}, ensure_ascii=False, separators=(",", ":")))
         except OSError as exc:
             log.warning("無法儲存歌單：%s", exc)

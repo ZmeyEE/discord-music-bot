@@ -92,7 +92,10 @@ class RelayClient:
                     async for msg in ws:
                         if msg.type != aiohttp.WSMsgType.TEXT:
                             continue
-                        await self._dispatch(ws, sessions, json.loads(msg.data))
+                        try:
+                            await self._dispatch(ws, sessions, json.loads(msg.data))
+                        except Exception:  # noqa: BLE001 - 一個瀏覽器的訊息出事，不能讓整條中繼連線（所有人）斷掉 / one browser's bad message must not drop the whole relay link (everyone)
+                            log.exception("處理中繼站轉來的訊息時出錯，已略過")
                 finally:
                     hello_task.cancel()
                     self.connected = False

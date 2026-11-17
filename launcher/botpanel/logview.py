@@ -37,9 +37,13 @@ class LogMixin:
         """
         while True:
             try:
-                self.calls.get_nowait()()
+                fn = self.calls.get_nowait()
             except queue.Empty:
                 break
+            try:
+                fn()
+            except Exception:  # noqa: BLE001 - 一個回呼出錯不能讓整個記錄區停止更新 / one failing callback must not stop the log view for good
+                pass
         n = 0
         while n < 200:
             try:

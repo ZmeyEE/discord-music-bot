@@ -3,14 +3,16 @@
    伺服器端是 musicbot/hub/library.py；歌曲列表在 libsongs.js，小視窗在 libdialogs.js
    (the server side is musicbot/hub/library.py; the song rows are in libsongs.js, the small dialogs in libdialogs.js) */
 import { askName, closeMenu, showMenu } from "./libdialogs.js";
+import { dragCards, justDragged, stopDrag, treeDrag, useTree } from "./libdrag.js";
 import { closeSongs, openSongs, songsView } from "./libsongs.js";
 import { drawSpotify, loadSpotifyLists } from "./libspotify.js";
+import { drawTree } from "./libtree.js";
 import { send } from "./net.js";
 import { SP } from "./spotify.js";
 import { S } from "./store.js";
 import { $, REDUCED_MOTION, el, icon, toast } from "./util.js";
 
-const dlg = $("#libDialog"), body = $("#libBody"), crumbs = $("#libCrumbs"), bar = $("#libBar"), box = $("#libBox");
+const dlg = $("#libDialog"), body = $("#libBody"), tree = $("#libTree"), crumbs = $("#libCrumbs"), bar = $("#libBar"), box = $("#libBox");
 
 /** 這個視窗的狀態 / The state of this dialog. */
 export const L = {
@@ -29,6 +31,25 @@ export function nodeOf(id, node = L.tree) {
   if (node.id === id) return node;
   for (const c of node.children || []) { const f = nodeOf(id, c); if (f) return f; }
   return null;
+}
+
+/** 從根到某個節點的資料夾 id（不含節點自己，除非它是資料夾）/ Folder ids from the root to a node (the node itself only when it is a folder). */
+function pathTo(id, node = L.tree, trail = []) {
+  if (!node) return null;
+  const here = node.type === "folder" ? [...trail, node.id] : trail;
+  if (node.id === id) return here;
+  for (const c of node.children || []) { const f = pathTo(id, c, here); if (f) return f; }
+  return null;
+}
+
+/** 左邊資料夾列點了某一列：跳到那個資料夾，或打開那張歌單 / A click on the folder bar: jump to that folder, or open that playlist. */
+function goTo(id) {
+  const node = nodeOf(id), path = pathTo(id);
+  if (!node || !path) return;
+  L.picked.clear(); L.spotify = false; L.path = path;
+  if (node.type === "folder") { L.playlist = null; closeSongs(); }
+  else { L.playlist = node.id; openSongs(node); }
+  render(true);
 }
 
 /** 現在看的資料夾（被刪掉了就退到根）/ The folder being viewed (falls back to the root when it was deleted). */
@@ -95,6 +116,7 @@ function drawCrumbs() {
     if (i) crumbs.appendChild(el("span", "sep", "›"));
     const b = el("button", "", p.label);
     b.type = "button";
+    if (p.depth >= 0) b.dataset.drop = p.id;                // 也能把東西拖到上層資料夾 / items can be dropped on a parent folder too
     b.addEventListener("click", () => {
       if (p.depth < 0) return;
       L.path.length = p.depth + 1; L.playlist = null; L.spotify = false; closeSongs(); L.picked.clear(); render(true);
@@ -218,6 +240,7 @@ function makeCard(node) {
   card.append(art, tick, act, el("div", "lib-name", node.name), el("div", "lib-sub", T("libSongs", { n: node.count })));
   card.title = node.name;
   const choose = () => {
+    if (justDragged()) return;
     if (L.selecting) {
       if (L.picked.has(node.id)) L.picked.delete(node.id); else L.picked.add(node.id);
       card.classList.toggle("selected", L.picked.has(node.id));
@@ -237,6 +260,8 @@ export function render(animate = false) {
   box.classList.toggle("lib-selecting", L.selecting);
   drawCrumbs();
   drawBar();
+  drawTree(tree, L.tree, L.path, L.playlist || current().id, T("libRoot"), goTo);
+  stopDrag();
   if (L.spotify) { drawSpotify(body, current().id); return; }
   if (L.playlist) { songsView.draw(body, nodeOf(L.playlist), L, animate && enter); return; }
   const folder = current();
@@ -248,11 +273,15 @@ export function render(animate = false) {
   const grid = el("div", "lib-grid");
   kids.forEach((n) => grid.appendChild(makeCard(n)));
   body.appendChild(grid);
+  dragCards(grid, folder.id, L.picked);
   if (animate) enter(grid);
 }
 
+useTree(() => L.tree);
+treeDrag(tree);
 $("#btnLibrary").addEventListener("click", openLibrary);
 document.addEventListener("mb:lib-bar", drawBar);
+document.addEventListener("mb:lib-redraw", () => render());
 document.addEventListener("mb:spotify", () => { if (dlg.open && L.spotify) render(); });
 document.addEventListener("mb:open-spotify-lists", async () => { await openLibrary(); L.spotify = true; loadSpotifyLists(); render(true); });
 $("#libClose").addEventListener("click", () => dlg.close());

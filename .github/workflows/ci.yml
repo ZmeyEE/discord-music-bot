@@ -25,7 +25,7 @@ jobs:
       - name: Compile everything (syntax check)
         run: python -m compileall -q bot.py musicbot launcher tests
       - name: Offline tests (stutter detector, relay hardening, recovery, sources, queue window, notices)
-        run: python tests/run_all.py health_unit harden_test recover_unit source_unit window_unit notice_unit audio_unit library_unit spotify_unit
+        run: python tests/run_all.py health_unit harden_test recover_unit source_unit window_unit notice_unit audio_unit library_unit spotify_unit persist_unit
       - name: Dependency audit (known vulnerabilities)
         run: pip-audit -r requirements.txt
         continue-on-error: true

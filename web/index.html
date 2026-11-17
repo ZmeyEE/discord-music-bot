@@ -154,7 +154,7 @@
     <p class="hint" data-i18n="dropHint">把待播卡片拖到這裡，立即播放</p>
 
     <!-- Spotify 帳號：連結後可以讀自己的歌單（沒設定 SPOTIFY_CLIENT_ID 就不會出現）/ Spotify account: once linked its playlists can be read (hidden unless SPOTIFY_CLIENT_ID is set) -->
-    <button type="button" id="spBtn" class="bili-btn sp-btn" hidden>
+    <button type="button" id="spBtn" class="bili-btn sp-btn">
       <span class="bili-avatar sp-mark" aria-hidden="true"><svg class="i"><use href="#i-note"/></svg></span>
       <span class="bili-text"><span id="spTitleBtn" data-i18n="spTitle">Spotify 帳號</span><small id="spSub"></small></span>
       <svg class="i" aria-hidden="true"><use href="#i-link"/></svg>
@@ -234,6 +234,15 @@
         <button type="button" id="spDone" class="btn-primary" data-i18n="spDone">完成連結</button>
       </footer>
     </div>
+    <div id="spUnset" hidden>
+      <p id="spUnsetText" class="sp-how"></p>
+      <div id="spSetup" hidden>
+        <input id="spClientId" type="text" spellcheck="false" autocomplete="off" maxlength="64" placeholder="Client ID" data-i18n-ph="spClientPh">
+        <footer class="dlg-actions">
+          <button type="button" id="spSave" class="btn-primary" data-i18n="spSave">儲存</button>
+        </footer>
+      </div>
+    </div>
     <div id="spLinked" hidden>
       <p class="sp-how"><b id="spName"></b></p>
       <p class="sp-how" data-i18n="spOnlyNote">Spotify 開發模式限制：只讀得到你自己建立或共同編輯的歌單。</p>
@@ -253,9 +262,15 @@
       <h2 id="libTitle" data-i18n="libTitle">我的歌單</h2>
       <nav id="libCrumbs" class="lib-crumbs" aria-label="路徑"></nav>
       <button type="button" class="tool-btn" id="libClose" aria-label="關閉" data-i18n-aria="libClose"><svg class="i"><use href="#i-close"/></svg></button>
+      <div id="libTrash" class="lib-trash" aria-hidden="true"><svg class="i"><use href="#i-trash"/></svg><span data-i18n="libTrash">拖到這裡刪除</span></div>
     </div>
-    <div id="libBar" class="lib-bar"></div>
-    <div id="libBody" class="lib-body"></div>
+    <div class="lib-split">
+      <nav id="libTree" class="lib-tree" aria-label="資料夾" data-i18n-aria="libTreeLabel"></nav>
+      <div class="lib-main">
+        <div id="libBar" class="lib-bar"></div>
+        <div id="libBody" class="lib-body"></div>
+      </div>
+    </div>
   </div>
 </dialog>
 

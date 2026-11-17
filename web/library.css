@@ -23,7 +23,7 @@
 
 /* ---- 歌單視窗 / the library dialog ---- */
 .lib-dlg { width: min(94vw, 900px); }
-.lib-box { position: relative; width: 100%; height: min(86vh, 760px); padding: 0; gap: 0; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; }
+.lib-box { position: relative; width: 100%; height: min(86vh, 760px); padding: 0; gap: 0; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
 .lib-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px 8px; }
 .lib-head h2 { font-size: 1.1rem; flex: none; }
 .lib-crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; min-width: 0; flex: 1; font-size: .86rem; color: var(--ink-3); }
@@ -34,6 +34,38 @@
 .lib-bar { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 18px 10px; border-bottom: 1px solid var(--line); }
 .lib-bar button { font-size: .84rem; padding: 7px 13px; }
 .lib-body { overflow-y: auto; padding: 14px 18px 18px; position: relative; }
+
+/* ---- 左邊的資料夾列、右上角的刪除區、拖曳中的標示 / the folder bar on the left, the trash at the top right, drag highlights ---- */
+.lib-split { display: flex; min-height: 0; border-top: 1px solid var(--line); }
+.lib-main { display: grid; grid-template-rows: auto minmax(0, 1fr); flex: 1; min-width: 0; min-height: 0; }
+.lib-tree { flex: none; width: 200px; overflow: auto; padding: 8px 6px; border-right: 1px solid var(--line); background: rgba(255, 255, 255, .35); font-size: .86rem; }
+.lt-row { display: flex; align-items: center; gap: 4px; padding-top: 5px; padding-bottom: 5px; padding-right: 6px; border-radius: 9px; cursor: pointer; color: var(--ink-2); white-space: nowrap; }
+.lt-row:hover { background: rgba(95, 126, 174, .12); }
+.lt-row.active { background: rgba(95, 126, 174, .22); color: var(--ink); font-weight: 800; }
+.lt-caret { flex: none; width: 16px; border: 0; background: transparent; color: var(--ink-3); cursor: pointer; padding: 0; font-size: .8rem; line-height: 1; }
+.lt-caret.none { visibility: hidden; }
+.lt-i { flex: none; width: 16px; height: 16px; }
+.lt-name { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.lib-trash {
+  position: absolute; z-index: 15; top: 8px; right: 62px; width: min(240px, 42%); height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  border-radius: 14px; border: 2px dashed var(--rose-deep); background: rgba(227, 194, 198, .35); color: var(--rose-deep); font-weight: 800; font-size: .88rem;
+  opacity: 0; visibility: hidden; transform: translateY(-8px); transition: opacity .15s, transform .15s, visibility 0s .15s; pointer-events: none;
+}
+.lib-trash .i { width: 18px; height: 18px; }
+.lib-drag .lib-trash { opacity: 1; visibility: visible; transform: none; pointer-events: auto; transition: opacity .15s, transform .15s; }
+.lib-trash.drop-over { background: var(--rose-deep); color: #fff; border-style: solid; }
+.lt-row.drop-over, .lib-crumbs button.drop-over { background: var(--accent); color: #fff; }
+.lt-row.drop-before { box-shadow: inset 0 2px 0 var(--accent); border-radius: 0; }       /* 插在這一列上面／下面：畫一條線 / insert above / below: a line */
+.lt-row.drop-after { box-shadow: inset 0 -2px 0 var(--accent); border-radius: 0; }
+.lt-row.lt-lifted { opacity: .45; }
+.lib-tree { user-select: none; }
+.lib-card.drop-over { outline: 3px solid var(--accent); outline-offset: -3px; background: rgba(95, 126, 174, .16); }    /* 放進這個資料夾 / move into this folder */
+.lib-ghost { position: fixed; left: 0; top: 0; z-index: 10; pointer-events: none; padding: 5px 12px; border-radius: 999px; background: var(--accent); color: #fff; font-size: .84rem; box-shadow: 0 6px 16px rgba(84, 115, 159, .35); }
+#spClientId { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: #fff; font: inherit; font-size: .86rem; color: var(--ink); outline: none; }
+#spClientId:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(95, 126, 174, .2); }
+.lib-drag { user-select: none; }
+.lib-drag .lib-card:hover { transform: none; }
+@media (max-width: 640px) { .lib-tree { display: none; } .lib-trash { right: 56px; } }
 
 .lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
 .lib-card {
@@ -94,7 +126,7 @@
 @keyframes libZoom { to { opacity: 0; transform: scale(1.12); } }
 @media (prefers-reduced-motion: reduce) {
   .lib-dlg[open] .lib-box, .lib-dlg[open]::backdrop, .lib-grid.enter, .lib-songs.enter, .lib-card.opening { animation: none; }
-  .lib-card { transition: none; }
+  .lib-card, .lib-trash { transition: none; }
 }
 
 /* ---- 小視窗：取名字、選歌單、播放選單 / small dialogs: asking a name, picking a playlist, the play menu ---- */

@@ -4,7 +4,7 @@ A free Discord music bot that runs on your own PC, Bilibili first, best audio qu
 This page is for people who want to change it: new language, new colors, better audio, or reuse the UI somewhere else
 (中文版在 [DEVELOPING.zh-TW.md](DEVELOPING.zh-TW.md))
 
-Version: **2.0.0** · License: [Unlicense](../LICENSE) (public domain, do whatever you want) · Third-party list: [THIRD_PARTY.md](../THIRD_PARTY.md)
+Version: **2.1.0** · License: [Unlicense](../LICENSE) (public domain, do whatever you want) · Third-party list: [THIRD_PARTY.md](../THIRD_PARTY.md)
 
 ## 1. Map of the project
 
@@ -27,6 +27,7 @@ musicbot/
   hub/                 the brain: who may control, which bot plays, snapshots, actions
     models.py identity.py routing.py streams.py snapshot.py actions.py bili.py library.py spotify.py core.py
   library/             My playlists: tree.py pure folder-tree functions, store.py persistence (library.json)
+  jsonfile.py          shared JSON persistence: a broken file is kept aside, atomic fsync write (members / library / spotify / settings)
   spotify/             Spotify account link: client.py official API (authorisation code + PKCE), accounts.py token storage
   health/              stutter detector, stops channels (newest first) when the PC can't keep up
     probe.py ledger.py monitor.py
@@ -39,6 +40,7 @@ musicbot/
   relay_client.py      the bot at home dials out to the relay
 web/                   dashboard front-end, vanilla HTML / CSS / JS, no build step
   js/                  ES modules, start with main.js, read from the bottom up (util / store / dom first)
+  libtree.js libdrag.js  library dialog: the folder bar on the left, dragging (reorder / move into a folder / trash)
   i18n.js              dashboard languages
 tests/                 regression tests (fake Discord voice layer)
 launcher/              tiny desktop start/stop window (tkinter, optional)

@@ -117,7 +117,15 @@ class LibraryMixin:
             elif t == "lib_delete":
                 note = f"已刪除 {tree.delete(root, ids)} 個項目"
             elif t == "lib_move":
-                note = f"已搬移 {tree.move(root, ids, text('to') or 'root')} 個項目"
+                at = msg.get("index")
+                note = f"已搬移 {tree.move(root, ids, text('to') or 'root', at if isinstance(at, int) and not isinstance(at, bool) else None)} 個項目"
+            elif t == "lib_song_move":
+                n = tree.move_songs(root, text("playlist"), [i for i in (msg.get("indexes") or []) if isinstance(i, int)][:5000], text("to"))
+                note = f"已搬 {n} 首歌" if n else None
+            elif t == "lib_song_order":
+                frm, to = msg.get("from"), msg.get("to")
+                if isinstance(frm, int) and isinstance(to, int):
+                    tree.reorder_song(root, text("playlist"), frm, to)
             elif t == "lib_remove_songs":
                 tree.remove_songs(root, text("playlist"), [i for i in (msg.get("indexes") or []) if isinstance(i, int)][:5000])
             elif t == "lib_play":
@@ -170,9 +178,15 @@ class LibraryMixin:
         if node is None:
             return None
         if scope["mode"] == "folders":
-            nxt = tree.next_sibling_folder(root, node["id"])
-            if nxt is not None:
+            seen = {node["id"]}                                   # 下一個資料夾若是空的就跳過；繞一圈都沒有歌才結束 / skip empty folders; stop only after a full round without songs
+            while True:
+                nxt = tree.next_sibling_folder(root, node["id"])
+                if nxt is None or nxt["id"] in seen:
+                    break
                 node = nxt
                 scope["node"] = node["id"]
+                if tree.songs_of(node):
+                    break
+                seen.add(node["id"])
         songs = tree.songs_of(node)
         return songs or None

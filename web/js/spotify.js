@@ -6,15 +6,15 @@ import { send } from "./net.js";
 import { $, setText } from "./util.js";
 
 const btn = $("#spBtn"), sub = $("#spSub"), dlg = $("#spDialog");
-const stateA = $("#spUnlinked"), stateB = $("#spLinked"), paste = $("#spPaste"), how = $("#spHow");
+const stateA = $("#spUnlinked"), stateB = $("#spLinked"), stateC = $("#spUnset"), paste = $("#spPaste"), how = $("#spHow");
 
 /** 目前的 Spotify 狀態（伺服器告訴我們的）/ The current Spotify state (as the server told us). */
-export const SP = { enabled: false, linked: false, name: "", redirect: "", playlists: null };
+export const SP = { known: false, enabled: false, canSetup: false, linked: false, name: "", redirect: "", playlists: null };
 
 /** 伺服器回了 Spotify 狀態 / The server sent the Spotify state. */
 export function onSpotify(msg) {
   const d = msg.data;
-  Object.assign(SP, { enabled: d.enabled, linked: d.linked, name: d.name, redirect: d.redirect });
+  Object.assign(SP, { known: true, enabled: d.enabled, canSetup: !!d.can_setup, linked: d.linked, name: d.name, redirect: d.redirect });
   if (!d.linked) SP.playlists = null;
   if (d.playlists) SP.playlists = d.playlists;
   if (d.auth_url) window.open(d.auth_url, "_blank", "noopener");      // 在新分頁打開 Spotify 的同意頁 / Spotify's consent page opens in a new tab
@@ -24,13 +24,15 @@ export function onSpotify(msg) {
 
 /** 按鈕與視窗依狀態重畫 / Redraw the button and dialog from the state. */
 function draw() {
-  btn.hidden = !SP.enabled;
   setText($("#spTitle"), T("spTitle"));
-  setText(sub, SP.linked ? T("spLinked", { name: SP.name }) : T("spNotLinked"));
+  setText(sub, SP.linked ? T("spLinked", { name: SP.name }) : T(SP.known && !SP.enabled ? "spUnsetSub" : "spNotLinked"));
   btn.classList.toggle("linked", SP.linked);
-  stateA.hidden = SP.linked;
+  stateA.hidden = SP.linked || !SP.enabled;
+  stateC.hidden = SP.enabled;
   stateB.hidden = !SP.linked;
   how.textContent = T("spHow", { redirect: SP.redirect });
+  $("#spUnsetText").textContent = T(SP.canSetup ? "spUnsetOwner" : "spUnset", { redirect: SP.redirect });
+  $("#spSetup").hidden = !SP.canSetup;
   setText($("#spName"), SP.name);
 }
 
@@ -40,6 +42,10 @@ $("#spGo").addEventListener("click", () => send({ type: "sp_connect" }));
 $("#spDone").addEventListener("click", () => {
   const text = paste.value.trim();
   if (text) { send({ type: "sp_finish", text }); paste.value = ""; }
+});
+$("#spSave").addEventListener("click", () => {
+  const id = $("#spClientId").value.trim();
+  if (id) { send({ type: "sp_setup", client_id: id }); $("#spClientId").value = ""; }
 });
 $("#spLogout").addEventListener("click", () => send({ type: "sp_logout" }));
 $("#spOpenLists").addEventListener("click", () => { dlg.close(); document.dispatchEvent(new CustomEvent("mb:open-spotify-lists")); });

@@ -9,12 +9,11 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import secrets
 import time
 from pathlib import Path
 
-from .. import params
+from .. import jsonfile, params
 
 log = logging.getLogger("musicbot")
 
@@ -26,18 +25,14 @@ class Accounts:
         self.path = Path(path)
         self.users: dict[str, dict] = {}
         self.pending: dict[str, dict] = {}        # state -> {user, verifier, until}
-        try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
-            self.users = {str(k): v for k, v in dict(data.get("users", {})).items() if isinstance(v, dict) and v.get("refresh")}
-        except (OSError, ValueError):
-            pass
+        users = jsonfile.read_dict(self.path).get("users", {})
+        if isinstance(users, dict):
+            self.users = {str(k): v for k, v in users.items() if isinstance(v, dict) and v.get("refresh")}
 
     def save(self) -> None:
         """原子寫入 / Atomic write."""
-        tmp = self.path.with_suffix(".tmp")
         try:
-            tmp.write_text(json.dumps({"users": self.users}, ensure_ascii=False), encoding="utf-8")
-            os.replace(tmp, self.path)
+            jsonfile.write_text(self.path, json.dumps({"users": self.users}, ensure_ascii=False))
         except OSError as exc:
             log.warning("無法儲存 Spotify 憑證：%s", exc)
 

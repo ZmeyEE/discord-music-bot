@@ -19,7 +19,7 @@ import shutil
 from pathlib import Path
 
 from .paths import BASE, ENV_FILE, SETTINGS_FILE
-from . import params
+from . import jsonfile, params
 
 log = logging.getLogger("musicbot")
 
@@ -104,16 +104,13 @@ def find_ffmpeg() -> str:
 # ============================================================
 def load_settings() -> None:
     """啟動時載入 settings.json；檔案不存在或壞掉就當作空的 / Load settings.json at startup (missing or broken = empty)."""
-    try:
-        _settings.update(json.loads(SETTINGS_FILE.read_text(encoding="utf-8")))
-    except (OSError, ValueError):
-        pass
+    _settings.update(jsonfile.read_dict(SETTINGS_FILE))
 
 
 def save_settings() -> None:
     """把記憶體裡的設定寫回 settings.json / Write the in-memory settings back to settings.json."""
     try:
-        SETTINGS_FILE.write_text(json.dumps(_settings, ensure_ascii=False, indent=2), encoding="utf-8")
+        jsonfile.write_text(SETTINGS_FILE, json.dumps(_settings, ensure_ascii=False, indent=2))
     except OSError as exc:
         log.warning("無法儲存設定：%s", exc)
 

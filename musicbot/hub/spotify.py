@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 
 import aiohttp
 
+from .. import config
 from ..library import LibraryError, tree
 from ..spotify import Accounts, SpotifyError, client
 from .models import UserCtx
@@ -28,18 +30,18 @@ class SpotifyMixin:
 
     @staticmethod
     def spotify_client_id() -> str:
-        """.env 的 SPOTIFY_CLIENT_ID；空的代表沒設定，畫面上就不提供連結 / SPOTIFY_CLIENT_ID in .env; empty = not configured, so the screen offers no link."""
-        return os.environ.get("SPOTIFY_CLIENT_ID", "").strip()
+        """.env 的 SPOTIFY_CLIENT_ID，沒有的話用看板上貼的（settings.json）；都沒有代表沒設定 / SPOTIFY_CLIENT_ID in .env, else the one pasted in the dashboard (settings.json); neither = not configured."""
+        return os.environ.get("SPOTIFY_CLIENT_ID", "").strip() or str(config.get_setting("spotify_client_id", "") or "").strip()
 
     def spotify_redirect(self) -> str:
         """授權完要導回的網址，必須和 Spotify 開發者後台登記的一模一樣 / The address to come back to; it must match the one registered in Spotify's developer dashboard exactly."""
         configured = os.environ.get("SPOTIFY_REDIRECT_URI", "").strip()
         return configured or f"http://127.0.0.1:{os.environ.get('DASHBOARD_PORT', '8765')}/spotify/callback"
 
-    def spotify_status(self, user: str) -> dict:
-        """給網頁的狀態：有沒有設定、有沒有連結 / The state for the page: configured or not, linked or not."""
+    def spotify_status(self, user: str, can_setup: bool = False) -> dict:
+        """給網頁的狀態：有沒有設定、有沒有連結、這個人能不能在畫面上貼 Client ID / The state for the page: configured, linked, and whether this person may paste the Client ID on screen."""
         acc = self.spotify.users.get(user)
-        return {"enabled": bool(self.spotify_client_id()), "linked": bool(acc), "name": (acc or {}).get("name", ""), "redirect": self.spotify_redirect()}
+        return {"enabled": bool(self.spotify_client_id()), "linked": bool(acc), "name": (acc or {}).get("name", ""), "redirect": self.spotify_redirect(), "can_setup": can_setup}
 
     async def _spotify_access(self, session: aiohttp.ClientSession, user: str) -> str:
         """這個人目前可用的 access token；快過期就先續期 / A usable access token for this person; refreshed first when it is about to expire."""
@@ -71,9 +73,17 @@ class SpotifyMixin:
         if user is None:
             return "請先用 /help 的專屬連結進來", None
         t = str(msg.get("type"))
-        status = lambda extra=None: {"type": "spotify", "data": {**self.spotify_status(user), **(extra or {})}}   # noqa: E731
+        status = lambda extra=None: {"type": "spotify", "data": {**self.spotify_status(user, self.is_owner(ctx)), **(extra or {})}}   # noqa: E731
         if t == "sp_status":
             return None, status()
+        if t == "sp_setup":
+            if not self.is_owner(ctx):
+                return "只有機器人擁有者可以設定 Spotify", status()
+            cid = str(msg.get("client_id") or "").strip().lower()
+            if cid and not re.fullmatch(r"[0-9a-f]{32}", cid):
+                return "Client ID 應該是 32 個英文字母和數字（在 Spotify 開發者後台的應用程式頁面複製）", status()
+            config.set_setting("spotify_client_id", cid or None)
+            return ("已儲存 Spotify Client ID，現在可以按「前往授權」" if cid else "已清除 Spotify Client ID"), status()
         if not self.spotify_client_id():
             return "這個機器人還沒有設定 Spotify（.env 的 SPOTIFY_CLIENT_ID）", status()
         try:

@@ -149,6 +149,7 @@ BROADCAST_MERGE_SECONDS = 0.05   # 狀態變更後等這麼久再廣播，期間
 DEFAULT_TTL = 12 * 3600   # 12 小時；過期後再輸入一次 /help 即可 / 12 hours; type /help again after it expires
 DEVICE_TTL = 90 * 24 * 3600     # 裝置憑證多久沒用就失效（每次使用會順延）/ a device token expires after this long unused (each use extends it)
 QR_LIFETIME = 180   # 秒；QR 碼的有效時間（Bilibili 約 3 分鐘）/ seconds a QR code stays valid (about 3 minutes)
+DEVICE_MAX_PER_USER = 5       # 同一個人在同一個伺服器最多記住幾個裝置（超過就丟掉最久沒用的）/ devices remembered per person per server (beyond that the least recently used goes)
 SEEN_RESOLUTION = 3600          # "最後使用"最多每小時寫一次檔 / "last seen" is written to disk at most once per hour
 INVITE_PERMISSIONS = 1024 + 2048 + 16384 + 1048576 + 2097152
 

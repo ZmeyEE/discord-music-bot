@@ -103,26 +103,33 @@ class VoiceMixin:
         """
         while True:
             await asyncio.sleep(params.IDLE_CHECK_SECONDS)
-            now = time.monotonic()
-            for guild in list(self.guilds):
-                vc, st = guild.voice_client, self.state(guild.id)
-                if not vc:
-                    st.empty_since = st.idle_since = 0.0
-                    continue
-                humans = [m for m in vc.channel.members if not m.bot]
-                st.empty_since = (st.empty_since or now) if not humans else 0.0
-                busy = vc.is_playing() or vc.is_paused() or st.busy
-                st.idle_since = (st.idle_since or now) if not busy else 0.0
+            try:
+                await self._idle_round()
+            except Exception:  # noqa: BLE001 - 這個監看迴圈死掉就再也不會自動離開頻道，所以任何錯誤都只記錄 / if this loop died nothing would ever leave a channel again, so any error is only logged
+                log.exception("閒置檢查出錯，下一輪再試")
 
-                reason = None
-                if params.EMPTY_LEAVE_SECONDS and st.empty_since and now - st.empty_since >= params.EMPTY_LEAVE_SECONDS:
-                    reason = "頻道內沒有人了"
-                elif params.IDLE_LEAVE_SECONDS and st.idle_since and now - st.idle_since >= params.IDLE_LEAVE_SECONDS:
-                    reason = "已經很久沒有播放"
-                if reason:
-                    log.info("[%s] %s，自動離開語音頻道（%s）", self.label, reason, guild.name)
-                    await self._say(st, f"{reason}，我先離開語音頻道了。要繼續聽請再用 `/play`。")
-                    await self.stop(guild)
+    async def _idle_round(self) -> None:
+        """檢查一輪所有伺服器 / One pass over all servers."""
+        now = time.monotonic()
+        for guild in list(self.guilds):
+            vc, st = guild.voice_client, self.state(guild.id)
+            if not vc:
+                st.empty_since = st.idle_since = 0.0
+                continue
+            humans = [m for m in vc.channel.members if not m.bot]
+            st.empty_since = (st.empty_since or now) if not humans else 0.0
+            busy = vc.is_playing() or vc.is_paused() or st.busy
+            st.idle_since = (st.idle_since or now) if not busy else 0.0
+
+            reason = None
+            if params.EMPTY_LEAVE_SECONDS and st.empty_since and now - st.empty_since >= params.EMPTY_LEAVE_SECONDS:
+                reason = "頻道內沒有人了"
+            elif params.IDLE_LEAVE_SECONDS and st.idle_since and now - st.idle_since >= params.IDLE_LEAVE_SECONDS:
+                reason = "已經很久沒有播放"
+            if reason:
+                log.info("[%s] %s，自動離開語音頻道（%s）", self.label, reason, guild.name)
+                await self._say(st, f"{reason}，我先離開語音頻道了。要繼續聽請再用 `/play`。")
+                await self.stop(guild)
 
     # 挑到這個分身的瞬間就登記，解析網址要幾秒，期間不能被別人搶走
     # Registered the moment this clone is picked: resolving a URL takes seconds, and nobody else may grab it meanwhile.

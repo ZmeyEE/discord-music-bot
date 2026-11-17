@@ -76,9 +76,11 @@ class StreamsMixin:
         self.limit_notice = {"text": text, "at": time.time()}
         log.warning("播放卡頓：停止最後加入的頻道「%s」（%s），剩 %d 個；原因：%s", s.channel, s.label, removal.remaining, reason)
         targets = [g.voice_client.channel for w in self.workers for g in w.guilds if g.voice_client and g.voice_client.channel]
-        if not params.notices_allow(problem=True):   # CHANNEL_NOTICES=off：連這則也不發（看板上方的公告還是會顯示）/ CHANNEL_NOTICES=off: not even this one (the banner on the dashboard still shows)
-            return
-        await asyncio.wait_for(asyncio.gather(*(self._announce(ch, text) for ch in targets), return_exceptions=True), 8)
+        if params.notices_allow(problem=True):       # CHANNEL_NOTICES=off：連這則也不發（看板上方的公告還是會顯示）/ CHANNEL_NOTICES=off: not even this one (the banner on the dashboard still shows)
+            try:
+                await asyncio.wait_for(asyncio.gather(*(self._announce(ch, text) for ch in targets), return_exceptions=True), 8)
+            except asyncio.TimeoutError:             # 公告送不出去（上傳頻寬滿了）也一定要停，這才是目的 / the notice is stuck (upload saturated); stopping is the point and must still happen
+                log.warning("卡頓公告逾時，仍然停止該頻道")
         await s.worker.stop(s.guild)
         self._notify_all()
         asyncio.get_running_loop().call_later(params.HOLD_SECONDS + 1, self._notify_all)   # 期滿時讓看板的公告自己消失 / when it expires, let the dashboard banner disappear by itself

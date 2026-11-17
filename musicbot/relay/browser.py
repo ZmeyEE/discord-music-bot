@@ -84,5 +84,8 @@ class BrowserMixin:
     async def _notify_offline(b: Browser) -> None:
         """告訴瀏覽器：播放端目前不在線 / Tell a browser that the home bot is currently offline."""
         if not b.ws.closed:
-            await b.ws.send_json({"type": "error", "code": "offline",
-                                  "text": "家裡的機器人目前沒有連上中繼站（可能關機或斷線），連上後會自動恢復"})
+            try:
+                await b.ws.send_json({"type": "error", "code": "offline",
+                                      "text": "家裡的機器人目前沒有連上中繼站（可能關機或斷線），連上後會自動恢復"})
+            except (ConnectionError, RuntimeError):      # 這個瀏覽器剛好斷了，別影響其他瀏覽器 / this browser just dropped; do not affect the others
+                pass

@@ -167,6 +167,31 @@ def remove_songs(root: Node, playlist_id: str, indexes: list[int]) -> int:
     return len(drop)
 
 
+def reorder_song(root: Node, playlist_id: str, frm: int, to: int) -> None:
+    """歌單裡把第 frm 首搬到第 to 首的位置 / Move the song at ``frm`` to position ``to`` inside a playlist."""
+    node = find(root, playlist_id)
+    if node is None or node["type"] != "playlist":
+        raise LibraryError("找不到這張歌單")
+    songs = node["songs"]
+    if not (0 <= frm < len(songs)):
+        return
+    songs.insert(max(0, min(to, len(songs) - 1)), songs.pop(frm))
+
+
+def move_songs(root: Node, playlist_id: str, indexes: list[int], to_id: str) -> int:
+    """把歌單裡的幾首歌搬到另一張歌單最後面（總數不變，所以不受上限影響）/ Move songs to the end of another playlist (the total is unchanged, so no limit applies)."""
+    src, dst = find(root, playlist_id), find(root, to_id)
+    if src is None or src["type"] != "playlist" or dst is None or dst["type"] != "playlist":
+        raise LibraryError("找不到這張歌單")
+    if src["id"] == dst["id"]:
+        return 0
+    pick = sorted({i for i in indexes if isinstance(i, int) and 0 <= i < len(src["songs"])})
+    dst["songs"].extend(src["songs"][i] for i in pick)
+    gone = set(pick)
+    src["songs"] = [s for i, s in enumerate(src["songs"]) if i not in gone]
+    return len(pick)
+
+
 def rename(root: Node, node_id: str, name: str) -> None:
     node = find(root, node_id)
     if node is None or node["id"] == root["id"]:
@@ -188,10 +213,11 @@ def delete(root: Node, ids: list[str]) -> int:
     return gone
 
 
-def move(root: Node, ids: list[str], to_id: str) -> int:
-    """把這些節點搬進另一個資料夾（不能搬進自己或自己的底下）/ Move nodes into another folder (never into themselves or something below them)."""
+def move(root: Node, ids: list[str], to_id: str, index: int | None = None) -> int:
+    """把這些節點搬進另一個資料夾（不能搬進自己或自己的底下）；給 index 就放在那個位置（同一個資料夾內就是重新排序）
+    Move nodes into another folder (never into themselves or something below them); with ``index`` they land at that position (inside the same folder that is a reorder)."""
     target = _folder(root, to_id)
-    moved = 0
+    picked: list[Node] = []
     for node_id in ids:
         node = find(root, node_id)
         if node is None or node["id"] == root["id"]:
@@ -203,12 +229,16 @@ def move(root: Node, ids: list[str], to_id: str) -> int:
             if base + 1 + height_of(node) > params.LIB_MAX_DEPTH:
                 raise LibraryError(f"資料夾最多 {params.LIB_MAX_DEPTH} 層")
         old = parent_of(root, node_id)
-        if old is None or old["id"] == target["id"]:
+        if old is None or (old["id"] == target["id"] and index is None) or any(n["id"] == node["id"] for n in picked):
             continue
-        old["children"] = [c for c in old["children"] if c["id"] != node_id]
-        target["children"].append(node)
-        moved += 1
-    return moved
+        picked.append(node)
+    gone = {n["id"] for n in picked}
+    for old in {id(parent_of(root, n["id"])): parent_of(root, n["id"]) for n in picked}.values():   # 先全部拿下來，再一起放回去，位置才是"最後的樣子" / take them all out first, then put them in together, so the position is the final one
+        old["children"] = [c for c in old["children"] if c["id"] not in gone]
+    kids = target["children"]
+    at = len(kids) if index is None else max(0, min(int(index), len(kids)))
+    kids[at:at] = picked
+    return len(picked)
 
 
 def group(root: Node, ids: list[str], name: str) -> Node:

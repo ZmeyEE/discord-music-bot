@@ -4,7 +4,7 @@
 這份給想改它的人：新增語言、改配色、優化音源到 Discord 的路徑、把看板 UI 用在別的地方
 (English version: [DEVELOPING.en.md](DEVELOPING.en.md))
 
-版本：**2.0.0** · 授權：[Unlicense](../LICENSE)（公有領域，想怎麼改都可以）· 第三方清單：[THIRD_PARTY.md](../THIRD_PARTY.md)
+版本：**2.1.0** · 授權：[Unlicense](../LICENSE)（公有領域，想怎麼改都可以）· 第三方清單：[THIRD_PARTY.md](../THIRD_PARTY.md)
 
 ## 1. 專案地圖
 
@@ -27,6 +27,7 @@ musicbot/
   hub/                 總指揮：誰能控制、哪個機器人播、狀態快照、操作
     models.py identity.py routing.py streams.py snapshot.py actions.py bili.py library.py spotify.py core.py
   library/             我的歌單：tree.py 資料夾樹純函式、store.py 存檔（library.json）
+  jsonfile.py          JSON 存檔共用：壞檔先備份、fsync 原子寫入（members / library / spotify / settings 都用它）
   spotify/             Spotify 帳號連結：client.py 官方 API（授權碼 + PKCE）、accounts.py 憑證存檔
   health/              卡頓偵測，電腦跟不上時由最後加入的頻道開始停
     probe.py ledger.py monitor.py
@@ -39,6 +40,7 @@ musicbot/
   relay_client.py      家裡的 bot 主動連出去連中繼站
 web/                   看板前端，原生 HTML / CSS / JS，不用建置
   js/                  ES 模組，從 main.js 看起，由下往上讀（先 util / store / dom）
+  libtree.js libdrag.js 歌單視窗左邊的資料夾列、拖曳（排序／搬進資料夾／刪除區）
   i18n.js i18n-library.js   看板語言（歌單的文字在 i18n-library.js，會併進主字典）
   library.css          我的歌單的樣式
 tests/                 回歸測試（Discord 語音層用假的）

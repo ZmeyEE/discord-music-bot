@@ -113,7 +113,11 @@ async def run(tokens: list[str]) -> None:
 
     monitor_task = asyncio.create_task(HealthMonitor(hub).run())   # 背景偵測播放卡頓（見 health.py）/ background stutter detection (see health.py)
     try:
-        await asyncio.gather(*(start_worker(w, t) for w, t in zip(hub.workers, tokens)))
+        # 某一個分身啟動時出了別的錯（網路暫時不通等），不要連累其他機器人 / one clone failing to start for another reason (a network blip...) must not take the others down
+        results = await asyncio.gather(*(start_worker(w, t) for w, t in zip(hub.workers, tokens)), return_exceptions=True)
+        for w, r in zip(hub.workers, results):
+            if isinstance(r, BaseException) and not isinstance(r, asyncio.CancelledError):
+                log.error("[%s] 啟動失敗：%r", w.label, r)
     finally:
         # 收尾：停掉背景工作、關閉所有機器人與後台 / cleanup: stop background tasks, close all bots and the dashboard
         monitor_task.cancel()

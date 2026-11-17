@@ -61,3 +61,5 @@ Your real `settings.json` and `members.json` are never touched (tests use `setti
 | `library_test.py` | verify | 歌單操作走真的 WebSocket、各人隔離、資料夾循環 / library actions over the real WebSocket, isolation, folder loops |
 | `perf_ui.py` | verify | 無頭 Chrome 量 2500 張卡片的捲動／刪除／拖曳 fps（找不到 Chrome 或 Edge 就略過）/ headless Chrome measures scroll / delete / drag fps with 2500 cards (skipped without Chrome or Edge) |
 | `library_ui.py` | verify | 歌單介面全流程，含假 Spotify（同上略過規則）/ the library screens end to end, with a fake Spotify (same skip rule) |
+| `library_drag.py` | verify | 歌單拖曳：排序、搬進資料夾列、刪除區、歌曲排序／搬歌（無頭 Chrome 真滑鼠，加 `SHOT_DIR` 會在放開前截圖）/ library dragging with real mouse events (set `SHOT_DIR` for a screenshot just before release) |
+| `persist_unit.py` | standalone | 存檔：壞檔備份、原子寫入、裝置數量上限 / persistence: broken-file backup, atomic write, device cap |

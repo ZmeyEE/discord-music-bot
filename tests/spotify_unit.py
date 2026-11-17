@@ -140,6 +140,20 @@ async def flows(tmp):
     out["unconfigured"] = (n9, r9["data"]["enabled"])
     n10, _ = await hub.spotify_action(UserCtx(user_id=None, name="x", pending=True), {"type": "sp_status"})
     out["noid"] = n10
+    # 在看板上貼 Client ID（只有擁有者）/ pasting the Client ID on the dashboard (owner only)
+    from musicbot import config
+    config.SETTINGS_FILE = type(config.SETTINGS_FILE)(os.path.join(tmp, "settings.json")); config._settings.clear()
+    boss = UserCtx(user_id=111, name="小明", via="link", is_owner=True)
+    out["setup_guest"] = await hub.spotify_action(me, {"type": "sp_setup", "client_id": "a" * 32})
+    out["setup_bad"] = await hub.spotify_action(boss, {"type": "sp_setup", "client_id": "not-an-id"})
+    out["setup_ok"] = await hub.spotify_action(boss, {"type": "sp_setup", "client_id": "A1" * 16})
+    out["setup_after"] = (hub.spotify_client_id(), (await hub.spotify_action(me, {"type": "sp_status"}))[1]["data"], (await hub.spotify_action(boss, {"type": "sp_status"}))[1]["data"])
+    out["setup_file"] = config.get_setting("spotify_client_id")
+    os.environ["SPOTIFY_CLIENT_ID"] = "FROMENV"
+    out["setup_env_first"] = hub.spotify_client_id()
+    os.environ.pop("SPOTIFY_CLIENT_ID")
+    await hub.spotify_action(boss, {"type": "sp_setup", "client_id": ""})
+    out["setup_clear"] = hub.spotify_client_id()
     return out
 
 with tempfile.TemporaryDirectory() as d:
@@ -158,6 +172,12 @@ check("H11 呼叫時被 401：續期後再試一次", o["retry"] == ["A2", "A3"]
 check("H12 登出：狀態變未連結，檔案裡的憑證也刪了", o["logout"] == (False, None), o["logout"])
 check("H13 沒設定 SPOTIFY_CLIENT_ID：明確說沒設定", "SPOTIFY_CLIENT_ID" in o["unconfigured"][0] and o["unconfigured"][1] is False, o["unconfigured"])
 check("H14 沒有身分的人不能用", "/help" in (o["noid"] or ""), o["noid"])
+
+check("H15 不是擁有者不能設定 Client ID", "擁有者" in o["setup_guest"][0] and not o["setup_guest"][1]["data"]["enabled"], o["setup_guest"])
+check("H16 Client ID 格式不對會被擋下來", "32" in o["setup_bad"][0] and not o["setup_bad"][1]["data"]["enabled"], o["setup_bad"])
+check("H17 擁有者貼上正確的 Client ID：存起來、立刻可以連結", "已儲存" in o["setup_ok"][0] and o["setup_ok"][1]["data"]["enabled"] and o["setup_file"] == "a1" * 16, o["setup_ok"])
+check("H18 只有擁有者的畫面會出現貼 Client ID 的欄位", o["setup_after"][1]["can_setup"] is False and o["setup_after"][2]["can_setup"] is True, o["setup_after"][1:])
+check("H19 .env 有設定時以 .env 為主；清除後回到沒設定", o["setup_env_first"] == "FROMENV" and o["setup_clear"] == "", (o["setup_env_first"], o["setup_clear"]))
 
 print(f"{sum(res)}/{len(res)} 通過", flush=True)
 sys.exit(0 if all(res) else 1)

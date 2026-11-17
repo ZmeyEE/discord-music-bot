@@ -31,10 +31,11 @@ SUITES = [
     ("window_test.py", "verify", {}),
     ("library_test.py", "verify", {}),
     ("library_ui.py", "verify", {"SPOTIFY_CLIENT_ID": "testclient", "FAKE_SPOTIFY": "1"}),
+    ("library_drag.py", "verify", {}),
     ("perf_ui.py", "verify", {}),
 ]
 # 自己就能跑的（不需要 harness）/ Self-contained (no harness needed)
-STANDALONE = ["health_unit.py", "harden_test.py", "recover_unit.py", "source_unit.py", "launcher_unit.py", "window_unit.py", "notice_unit.py", "audio_unit.py", "library_unit.py", "spotify_unit.py"]
+STANDALONE = ["health_unit.py", "harden_test.py", "recover_unit.py", "source_unit.py", "launcher_unit.py", "window_unit.py", "notice_unit.py", "audio_unit.py", "library_unit.py", "spotify_unit.py", "persist_unit.py"]
 
 
 def stop(p):

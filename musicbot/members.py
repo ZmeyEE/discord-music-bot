@@ -22,11 +22,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import secrets
 import time
 from pathlib import Path
-from . import params
+from . import jsonfile, params
 
 log = logging.getLogger("musicbot")
 
@@ -47,20 +46,16 @@ class Registry:
     def __init__(self, path: Path | str) -> None:
         self.path = Path(path)
         self.devices: dict[str, dict] = {}
-        try:
-            self.devices = dict(json.loads(self.path.read_text(encoding="utf-8")).get("devices", {}))
-        except (OSError, ValueError):
-            pass  # 檔案不存在或壞掉就當作空的 / missing or corrupt file simply means "empty"
+        devices = jsonfile.read_dict(self.path).get("devices", {})      # 不存在 = 空的；壞掉會先備份 / missing = empty; a broken file is kept aside first
+        self.devices = {k: v for k, v in devices.items() if isinstance(v, dict)} if isinstance(devices, dict) else {}
 
     def _save(self) -> None:
         """原子寫入：先寫暫存檔再取代，避免寫到一半斷電造成檔案損毀
 
         Atomic write: write a temp file, then replace, so a crash mid-write can't corrupt the file.
         """
-        tmp = self.path.with_suffix(".tmp")
         try:
-            tmp.write_text(json.dumps({"devices": self.devices}, ensure_ascii=False, indent=1), encoding="utf-8")
-            os.replace(tmp, self.path)
+            jsonfile.write_text(self.path, json.dumps({"devices": self.devices}, ensure_ascii=False, indent=1))
         except OSError as exc:
             log.warning("無法儲存成員登錄：%s", exc)
 
@@ -71,9 +66,20 @@ class Registry:
         """
         token = secrets.token_urlsafe(32)
         now = time.time()
+        self._prune(str(uid), str(gid), now)
         self.devices[_h(token)] = {"uid": str(uid), "name": name, "gid": str(gid), "created": now, "seen": now}
         self._save()
         return token
+
+    def _prune(self, uid: str, gid: str, now: float) -> None:
+        """登記新裝置前先清：過期的刪掉，同一個人在同一個伺服器最多留 DEVICE_MAX_PER_USER - 1 個最近用過的（連結重新整理一次就領一把，不清會越積越多）
+        Before adding a device: drop the expired ones and keep at most DEVICE_MAX_PER_USER - 1 recent ones for this person in this server (every refresh of a link would otherwise add one more).
+        """
+        for k in [k for k, r in self.devices.items() if now - r.get("seen", 0) > params.DEVICE_TTL]:
+            del self.devices[k]
+        mine = sorted((k for k, r in self.devices.items() if r.get("uid") == uid and r.get("gid") == gid), key=lambda k: self.devices[k].get("seen", 0))
+        for k in mine[: max(0, len(mine) - (params.DEVICE_MAX_PER_USER - 1))]:
+            del self.devices[k]
 
     def lookup(self, token: str) -> dict | None:
         """用憑證找出登記資料；過期就刪掉並回傳 None，使用中則順延效期

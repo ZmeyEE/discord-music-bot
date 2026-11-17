@@ -126,6 +126,7 @@ export function syncQueue(next) {
   list = next;
   if (!list.length) { layout(true); return; }
   const { from, to } = viewRows();
+  if (Math.floor(from) >= list.length) { layout(true); return; }      // 清單一下子縮短，捲動位置已經在最後面之外：整個重排 / the list shrank below the scroll position: lay out again
   draw(Math.max(0, Math.floor(from) - BUFFER), Math.min(list.length, Math.ceil(to) + BUFFER));
 }
 

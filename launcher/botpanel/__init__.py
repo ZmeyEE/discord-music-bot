@@ -10,4 +10,4 @@ version info. Bump it together with the musicbot version.
   widgets.py  畫面零件：漸層背景、卡片、膠囊按鈕、狀態燈 / UI parts: gradient, cards, pill buttons, status light
   window.py   視窗本體 / the window
 """
-__version__ = "2.0.0"
+__version__ = "2.1.0"

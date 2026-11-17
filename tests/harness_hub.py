@@ -200,6 +200,9 @@ async def main():
         u, n = req.query["u"], int(req.query.get("n", 30))
         root = hub.library.root(u)
         if req.query.get("reset"): root["children"].clear()
+        if req.query.get("folder"):       # /libseed?u=..&folder=F：只建一個資料夾（可用 parent 放進別的資料夾），回傳它的 id / only make a folder (parent puts it inside another one) and return its id
+            f = tree.add_folder(root, req.query.get("parent", "root"), req.query["folder"])
+            return web.json_response({"id": f["id"], "tree": tree.outline(root)})
         songs = [{"url": f"https://www.bilibili.com/video/BV1yy{i:07d}", "title": f"{req.query.get('name', '歌')} {i:03d}", "duration": 200, "thumbnail": f"https://i0.hdslb.com/x{i}.jpg", "uploader": "上傳者"} for i in range(n)]
         node = tree.add_playlist(root, req.query.get("parent", "root"), req.query.get("name", "種子歌單"), songs)
         return web.json_response({"id": node["id"], "tree": tree.outline(root)})

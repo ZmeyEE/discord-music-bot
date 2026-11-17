@@ -79,10 +79,15 @@ class WorkerMixin:
                 elif t in ("msg", "close"):
                     b = self.browsers.get(str(d.get("sid")))
                     if b and not b.ws.closed:
-                        if t == "msg":
-                            await b.ws.send_str(json.dumps(d.get("data")))
-                        else:
-                            await b.ws.close()
+                        # 瀏覽器剛斷線時 send 會丟例外；那只是這一個瀏覽器的事，不能弄斷家裡機器人的連線
+                        # A browser that just dropped makes send raise; that is only that browser's problem and must not cut the home bot's connection
+                        try:
+                            if t == "msg":
+                                await b.ws.send_str(json.dumps(d.get("data")))
+                            else:
+                                await b.ws.close()
+                        except (ConnectionError, RuntimeError):
+                            pass
         finally:
             if self.worker is ws:
                 self.worker = None

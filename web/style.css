@@ -457,6 +457,7 @@ body.offline .board, body.offline .topbar .controls > :not(.lang) { opacity: .4;
   border: 1px solid var(--line); background: rgba(255, 255, 255, .7); color: var(--ink); text-align: left;
   transition: background .15s, box-shadow .15s;
 }
+.bili-btn + .bili-btn { margin-top: 8px; }       /* 兩顆時只有第一顆推到底，第二顆貼在它下面 / with two, only the first is pushed down; the second sits right under it */
 .bili-btn:hover { background: rgba(255, 255, 255, .95); box-shadow: 0 4px 12px rgba(84, 115, 159, .15); }
 .bili-btn .bili-text { flex: 1; min-width: 0; display: grid; line-height: 1.25; font-size: .88rem; }
 .bili-btn small { color: var(--ink-3); font-size: .74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -2,10 +2,10 @@
    Strings of the library screens (four languages); i18n.js merges them into the main dictionary. A missing key falls back to Traditional Chinese. */
 window.I18N_EXTRA = {
   "zh-TW": {
-    spTitle: "Spotify 帳號", spNotLinked: "尚未連結", spLinked: "已連結：{name}", spGo: "前往授權", spDone: "完成連結", spLogout: "登出", spLists: "我的 Spotify 歌單",
+    spTitle: "Spotify 帳號", spUnsetOwner: "還沒設定 Spotify。\n1. 到 developer.spotify.com/dashboard 建立應用程式\n2. Redirect URI 登記：{redirect}\n3. 把 Client ID 貼在下面按儲存，就能直接在這裡登入", spClientPh: "Client ID（32 個字元）", spSave: "儲存", spUnsetSub: "尚未設定", spUnset: "這個機器人還沒有設定 Spotify。\n到 Spotify 開發者後台建立應用程式，把 Client ID 填進 .env 的 SPOTIFY_CLIENT_ID，Redirect URI 登記 {redirect}，重新啟動機器人就能連結（步驟見 README）。", spNotLinked: "尚未連結", spLinked: "已連結：{name}", spGo: "前往授權", spDone: "完成連結", spLogout: "登出", spLists: "我的 Spotify 歌單",
     spHow: "1. 按「前往授權」，在 Spotify 同意。\n2. 瀏覽器會跳到一個打不開的頁面（網址以 {redirect} 開頭），這是正常的。\n3. 把那一頁網址列的整段網址複製，貼到下面再按「完成連結」。",
     spPastePh: "貼上授權後瀏覽器網址列的整段網址", spOnlyNote: "Spotify 開發模式限制：只讀得到你自己建立或共同編輯的歌單。", spListsLoading: "載入中…", spImport: "點一下存進我的歌單", spNone: "沒有找到可以讀的歌單",
-    libTitle: "我的歌單", libOpen: "我的歌單", libRoot: "我的歌單", libClose: "關閉", libBack: "上一層",
+    libTitle: "我的歌單", libOpen: "我的歌單", libRoot: "我的歌單", libTrash: "拖到這裡刪除", libTreeLabel: "資料夾", libClose: "關閉", libBack: "上一層",
     libNewPlaylist: "＋ 歌單", libNewFolder: "＋ 資料夾", libLink: "貼連結存入", libSelect: "選取", libCancel: "取消",
     libGroup: "建立資料夾（{n}）", libDelete: "刪除（{n}）", libEmpty: "這裡還沒有東西", libEmptyHint: "在待播清單選幾首歌「存成歌單」，或按上面的「貼連結存入」",
     libFolderName: "資料夾名稱", libPlaylistName: "歌單名稱", libNewFolderDef: "新資料夾", libNewPlaylistDef: "新歌單", libRename: "改名", libRenameTitle: "改名",
@@ -17,10 +17,10 @@ window.I18N_EXTRA = {
     selectMode: "選取歌曲", selSave: "存成歌單（{n}）", selAll: "全選已載入的", selNone: "取消選取", selCount: "已選 {n} 首", addToList: "加入歌單", saveAsName: "新歌單的名字",
   },
   "zh-CN": {
-    spTitle: "Spotify 账号", spNotLinked: "尚未连接", spLinked: "已连接：{name}", spGo: "前往授权", spDone: "完成连接", spLogout: "登出", spLists: "我的 Spotify 歌单",
+    spTitle: "Spotify 账号", spUnsetOwner: "还没设置 Spotify。\n1. 到 developer.spotify.com/dashboard 创建应用\n2. Redirect URI 登记：{redirect}\n3. 把 Client ID 粘贴在下面点保存，就能直接在这里登录", spClientPh: "Client ID（32 个字符）", spSave: "保存", spUnsetSub: "尚未设置", spUnset: "这个机器人还没有设置 Spotify。\n到 Spotify 开发者后台创建应用，把 Client ID 填进 .env 的 SPOTIFY_CLIENT_ID，Redirect URI 登记 {redirect}，重新启动机器人就能连接（步骤见 README）。", spNotLinked: "尚未连接", spLinked: "已连接：{name}", spGo: "前往授权", spDone: "完成连接", spLogout: "登出", spLists: "我的 Spotify 歌单",
     spHow: "1. 按“前往授权”，在 Spotify 同意。\n2. 浏览器会跳到一个打不开的页面（网址以 {redirect} 开头），这是正常的。\n3. 把那一页地址栏的整段网址复制，贴到下面再按“完成连接”。",
     spPastePh: "贴上授权后浏览器地址栏的整段网址", spOnlyNote: "Spotify 开发模式限制：只读得到你自己创建或共同编辑的歌单。", spListsLoading: "载入中…", spImport: "点一下存进我的歌单", spNone: "没有找到可以读的歌单",
-    libTitle: "我的歌单", libOpen: "我的歌单", libRoot: "我的歌单", libClose: "关闭", libBack: "上一层",
+    libTitle: "我的歌单", libOpen: "我的歌单", libRoot: "我的歌单", libTrash: "拖到这里删除", libTreeLabel: "文件夹", libClose: "关闭", libBack: "上一层",
     libNewPlaylist: "＋ 歌单", libNewFolder: "＋ 文件夹", libLink: "贴链接存入", libSelect: "选取", libCancel: "取消",
     libGroup: "创建文件夹（{n}）", libDelete: "删除（{n}）", libEmpty: "这里还没有东西", libEmptyHint: "在待播列表选几首歌“存成歌单”，或按上面的“贴链接存入”",
     libFolderName: "文件夹名称", libPlaylistName: "歌单名称", libNewFolderDef: "新文件夹", libNewPlaylistDef: "新歌单", libRename: "改名", libRenameTitle: "改名",
@@ -32,10 +32,10 @@ window.I18N_EXTRA = {
     selectMode: "选取歌曲", selSave: "存成歌单（{n}）", selAll: "全选已载入的", selNone: "取消选取", selCount: "已选 {n} 首", addToList: "加入歌单", saveAsName: "新歌单的名字",
   },
   en: {
-    spTitle: "Spotify account", spNotLinked: "Not linked", spLinked: "Linked: {name}", spGo: "Go and authorise", spDone: "Finish linking", spLogout: "Log out", spLists: "My Spotify playlists",
+    spTitle: "Spotify account", spUnsetOwner: "Spotify is not set up yet.\n1. Create an app at developer.spotify.com/dashboard\n2. Register this Redirect URI: {redirect}\n3. Paste the Client ID below and save, then you can log in right here", spClientPh: "Client ID (32 characters)", spSave: "Save", spUnsetSub: "Not set up", spUnset: "This bot has no Spotify set up yet.\nCreate an app in the Spotify developer dashboard, put its Client ID in SPOTIFY_CLIENT_ID in .env, register {redirect} as the Redirect URI and restart the bot (steps are in the README).", spNotLinked: "Not linked", spLinked: "Linked: {name}", spGo: "Go and authorise", spDone: "Finish linking", spLogout: "Log out", spLists: "My Spotify playlists",
     spHow: "1. Press \"Go and authorise\" and agree at Spotify.\n2. The browser lands on a page that will not open (its address starts with {redirect}); that is normal.\n3. Copy the whole address from that page's address bar, paste it below and press \"Finish linking\".",
     spPastePh: "Paste the whole address from the browser after authorising", spOnlyNote: "Spotify Development Mode limit: only playlists you created or collaborate on can be read.", spListsLoading: "Loading…", spImport: "Click to save into My playlists", spNone: "No readable playlists were found",
-    libTitle: "My playlists", libOpen: "My playlists", libRoot: "My playlists", libClose: "Close", libBack: "Up one level",
+    libTitle: "My playlists", libOpen: "My playlists", libRoot: "My playlists", libTrash: "Drop here to delete", libTreeLabel: "Folders", libClose: "Close", libBack: "Up one level",
     libNewPlaylist: "+ Playlist", libNewFolder: "+ Folder", libLink: "Save a link", libSelect: "Select", libCancel: "Cancel",
     libGroup: "Make folder ({n})", libDelete: "Delete ({n})", libEmpty: "Nothing here yet", libEmptyHint: "Select songs in the queue and choose \"Save as playlist\", or use \"Save a link\" above",
     libFolderName: "Folder name", libPlaylistName: "Playlist name", libNewFolderDef: "New folder", libNewPlaylistDef: "New playlist", libRename: "Rename", libRenameTitle: "Rename",
@@ -47,10 +47,10 @@ window.I18N_EXTRA = {
     selectMode: "Select songs", selSave: "Save as playlist ({n})", selAll: "Select all loaded", selNone: "Clear selection", selCount: "{n} selected", addToList: "Add to a playlist", saveAsName: "Name of the new playlist",
   },
   ja: {
-    spTitle: "Spotify アカウント", spNotLinked: "未連携", spLinked: "連携済み：{name}", spGo: "認証に進む", spDone: "連携を完了", spLogout: "ログアウト", spLists: "自分の Spotify プレイリスト",
+    spTitle: "Spotify アカウント", spUnsetOwner: "Spotify が未設定です。\n1. developer.spotify.com/dashboard でアプリを作成\n2. Redirect URI に {redirect} を登録\n3. 下に Client ID を貼って保存すると、ここでログインできます", spClientPh: "Client ID（32 文字）", spSave: "保存", spUnsetSub: "未設定", spUnset: "このボットにはまだ Spotify が設定されていません。\nSpotify の開発者ダッシュボードでアプリを作成し、Client ID を .env の SPOTIFY_CLIENT_ID に書き、Redirect URI に {redirect} を登録してボットを再起動してください（手順は README）。", spNotLinked: "未連携", spLinked: "連携済み：{name}", spGo: "認証に進む", spDone: "連携を完了", spLogout: "ログアウト", spLists: "自分の Spotify プレイリスト",
     spHow: "1. 「認証に進む」を押して Spotify で許可します。\n2. ブラウザが開けないページに移動します（アドレスは {redirect} で始まります）。これは正常です。\n3. そのページのアドレスバーの全文をコピーして下に貼り付け、「連携を完了」を押します。",
     spPastePh: "認証後にブラウザのアドレスバーに表示された全文を貼り付け", spOnlyNote: "Spotify 開発モードの制限：自分で作成した、または共同編集しているプレイリストだけ読めます。", spListsLoading: "読み込み中…", spImport: "クリックでマイプレイリストに保存", spNone: "読めるプレイリストが見つかりません",
-    libTitle: "マイプレイリスト", libOpen: "マイプレイリスト", libRoot: "マイプレイリスト", libClose: "閉じる", libBack: "ひとつ上へ",
+    libTitle: "マイプレイリスト", libOpen: "マイプレイリスト", libRoot: "マイプレイリスト", libTrash: "ここにドロップして削除", libTreeLabel: "フォルダー", libClose: "閉じる", libBack: "ひとつ上へ",
     libNewPlaylist: "＋ プレイリスト", libNewFolder: "＋ フォルダ", libLink: "リンクを保存", libSelect: "選択", libCancel: "キャンセル",
     libGroup: "フォルダを作成（{n}）", libDelete: "削除（{n}）", libEmpty: "まだ何もありません", libEmptyHint: "キューで曲を選んで「プレイリストに保存」するか、上の「リンクを保存」を使ってください",
     libFolderName: "フォルダ名", libPlaylistName: "プレイリスト名", libNewFolderDef: "新しいフォルダ", libNewPlaylistDef: "新しいプレイリスト", libRename: "名前を変更", libRenameTitle: "名前を変更",

@@ -3,6 +3,30 @@
 格式參考 [Keep a Changelog](https://keepachangelog.com/)，版本號遵循 [SemVer](https://semver.org/lang/zh-TW/)
 Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [SemVer](https://semver.org/)
 
+## [2.1.0] - 2026-11-17
+
+### 新增 / Added
+- **我的歌單可以拖曳**：視窗左邊多了一排像檔案總管的資料夾列（點一下跳過去，只畫展開的資料夾）；卡片可以拖來排序、拖到左邊的資料夾列或上方路徑搬進資料夾、拖到右上角的刪除區刪除；歌單裡的歌曲同樣能排序、拖到資料夾列的另一張歌單、拖去刪除。選取模式下拖一張被選的就整批一起走。用的是待播清單同一個 SortableJS，手機寬度只隱藏左邊的列。/ The library dialog gets a file-explorer-like folder bar on the left, and cards and songs can be dragged: reorder, drop on the folder bar or a breadcrumb to move, drop on the trash at the top right to delete (several selected items move together). Same SortableJS as the queue; phone width only hides the bar.
+- **Spotify 按鈕永遠顯示**：沒設定 `SPOTIFY_CLIENT_ID` 時按鈕不再藏起來，點開會寫怎麼設定 / The Spotify button is always shown; without `SPOTIFY_CLIENT_ID` it explains how to set it up.
+- **Spotify 可以直接在看板上設定與登入**：擁有者在 Spotify 視窗貼上 Client ID 按儲存（存在 settings.json，`.env` 有設定時以 `.env` 為主），就能直接按"前往授權"登入，不必再改檔案重開機器人 / Spotify can be set up and logged in right on the dashboard: the owner pastes the Client ID in the Spotify dialog (kept in settings.json; `.env` wins when set) and can then authorise without editing files or restarting.
+- **左邊資料夾列也能拖、也是放置點**：按住一列拖到另一列（中間 = 放進資料夾，上緣／下緣 = 插在那個位置）或刪除區；卡片放在列的上緣／下緣就會排到那個位置，停在另一張資料夾卡片中央就放進去 / the folder bar rows can be dragged and are drop points: middle of a row = move inside, top / bottom edge = insert at that spot; a card dropped on a row's edge lands there, and resting on the middle of another folder card puts it inside.
+- 控制面板 exe 的圖示換成面板左上角的唱片 logo / the launcher exe icon is now the record-disc logo of the panel.
+
+### 修正 / Fixes
+- 我的歌單左邊資料夾列最上層"我的歌單"收不起來（每次重畫都被自動展開）/ the top level of the folder bar could not be collapsed (every redraw re-expanded it).
+- 兩顆帳號按鈕（Spotify、Bilibili）之間隔很遠，現在貼在一起 / the two account buttons (Spotify, Bilibili) sat far apart; they are now together.
+- 中繼站：某個瀏覽器剛好斷線時，轉送訊息丟出的例外會把家裡機器人的連線也弄斷（全體看到離線、約 3 秒後重連）/ relay: a browser that had just dropped made the forwarding raise and cut the home bot's connection for everyone.
+- 卡頓保護：`CHANNEL_NOTICES=off`，或公告逾時（上傳頻寬滿了）時，沒有真的停掉最後加入的頻道 / stutter protection did not stop the last-joined channel when notices were off or the notice timed out.
+- 開始播放失敗（ffmpeg 起不來、語音剛好斷線）時，那首歌不再憑空消失，放回待播最前面 / a song whose playback failed to start is put back at the front of the queue instead of vanishing.
+- 存檔：`library.json`、`members.json`、`spotify_tokens.json`、`settings.json` 改成真正的原子寫入（fsync）；檔案壞掉（或最外層不是字典）時先改名備份成 `*.bad-時間` 再從空的開始，不再被下一次存檔直接蓋掉；`settings.json` 以前是直接覆寫 / persistence now fsyncs, keeps a broken file aside as `*.bad-<time>` instead of overwriting it, and `settings.json` is no longer written in place.
+- 同一個人用連結重新整理會一直領新的裝置憑證（一個人累積 50 筆）：現在同一人同一伺服器最多記住 5 個（`DEVICE_MAX_PER_USER`），登記時順便清掉過期的 / refreshing a link kept issuing new device tokens; now capped per person per server and expired ones are purged.
+- 跨資料夾循環遇到空資料夾會整個停掉，現在跳過空的、繞一圈都沒有歌才結束 / "loop across folders" stopped at an empty folder; it now skips empty ones.
+- 歌單歌曲：移除後、列表更新前再點會刪到錯的歌（列是用編號指的），現在更新前鎖住；慢到的舊回覆不再接在新列表後面 / song rows are locked until the list refreshes after a change, and late stale replies are ignored.
+- 其他：閒置離開的監看迴圈、中繼連線的訊息處理、分身啟動、控制面板記錄區，出一次錯就整個停擺 → 現在只記錄、繼續；暫停中按鍵盤右鍵進度跳太多；待播清單一下子縮短時畫面空白；一次搬上千首歌很慢 / one error no longer stops the idle watcher, the relay message loop, clone start-up or the launcher log view; keyboard seek while paused; blank queue after a sudden shrink; moving thousands of songs was slow.
+
+### 測試 / Tests
+- 新增 `library_drag.py`（無頭 Chrome 真滑鼠拖曳，24 項）、`persist_unit.py`（存檔與裝置登錄），`library_unit.py` 加了排序與搬歌 / new `library_drag.py` (real-mouse drags, 24 checks) and `persist_unit.py`; `library_unit.py` covers reordering and moving songs.
+
 ## [2.0.0] - 2026-11-17
 
 ### 重大變更 / Breaking

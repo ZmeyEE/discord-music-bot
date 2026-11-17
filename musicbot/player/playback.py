@@ -61,7 +61,14 @@ class PlaybackMixin:
                     track.duration = track.duration or (int(stream.duration) if stream.duration else None)
                 offset = st.start_offset if st.start_offset_id == track.id else 0.0
                 st.start_offset, st.start_offset_id = 0.0, ""
-                bitrate = self._play_stream(guild, vc, track, stream, offset)
+                try:
+                    bitrate = self._play_stream(guild, vc, track, stream, offset)
+                except Exception as exc:  # noqa: BLE001 - ffmpeg 開不起來、語音剛好斷線等：歌放回最前面，不要讓它憑空消失 / ffmpeg failed to start, voice just dropped...: put the song back at the front instead of losing it
+                    log.warning("無法開始播放 %s：%s", track.title or track.url, exc)
+                    st.queue.appendleft(track)
+                    st.current = None
+                    self.notify(guild.id)
+                    break
                 self.notify(guild.id)
                 self._enrich_ahead(guild.id)
                 if st.last_announced != track.id:
