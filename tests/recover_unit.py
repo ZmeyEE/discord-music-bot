@@ -129,6 +129,42 @@ async def main():
         await task
     check("R9 救援中 stop：清掉進度、不進頻道", g.voice_client is None and not st.recovering and st.start_offset == 0.0)
 
+    # 10) 網路瞬斷後語音物件還在但連不上：強制斷開再回頻道，之後才能播 / voice object left there but not connected after a blip: force disconnect, rejoin, then play
+    class StuckVC(SimpleNamespace):
+        def is_connected(self): return False
+        def is_playing(self): return False
+        def is_paused(self): return False
+        async def disconnect(self, force=False): self.gone = True; self.guild.voice_client = None
+    g = Guild(); w = make(g, drop_ago=999); st = w.state(1); st.last_voice_id = 7
+    w.ensure_playing = PlayerBot.ensure_playing.__get__(w); w.repair_voice = PlayerBot.repair_voice.__get__(w)
+    vc = StuckVC(channel=g.channel, guild=g); g.voice_client = vc
+    async def fixed_ensure(g_, channel=None):
+        g_.voice_client = SimpleNamespace(channel=g_.channel, is_connected=lambda: True); w._connected.append(1); return g_.voice_client
+    w.ensure_voice = fixed_ensure
+    ok = await w.repair_voice(g)
+    check("R10 語音卡住：強制斷開並重連成功", ok and getattr(vc, "gone", False) and g.voice_client.is_connected() and w._connected, (ok, w._connected))
+    ok2 = await w.repair_voice(g)
+    check("R11 已經連著就什麼都不做", ok2 and len(w._connected) == 1)
+    g = Guild(); w = make(g, drop_ago=999); st = w.state(1); st.last_voice_id = 7
+    w.repair_voice = PlayerBot.repair_voice.__get__(w)
+    g.voice_client = StuckVC(channel=g.channel, guild=g)
+    async def failing(g_, channel=None): raise asyncio.TimeoutError()
+    w.ensure_voice = failing
+    check("R12 重連失敗不會丟例外，回傳 False（下一輪再試）", await w.repair_voice(g) is False)
+    # 閒置檢查：卡住超過 VOICE_STALE_SECONDS 才動手 / the idle round acts only after VOICE_STALE_SECONDS
+    g = Guild(); w = make(g, drop_ago=999); st = w.state(1); st.last_voice_id = 7
+    calls = []
+    async def fake_repair(g_): calls.append(1); return False
+    w.repair_voice = fake_repair
+    g.voice_client = StuckVC(channel=g.channel, guild=g)
+    with mock.patch.object(PlayerBot, "guilds", new_callable=mock.PropertyMock, return_value=[g]):
+        await w._idle_round()
+    check("R13 剛斷線的第一輪先不動（給 discord.py 自己恢復的機會）", not calls and st.stale_since > 0)
+    st.stale_since -= params.VOICE_STALE_SECONDS + 1
+    with mock.patch.object(PlayerBot, "guilds", new_callable=mock.PropertyMock, return_value=[g]):
+        await w._idle_round()
+    check("R14 卡太久：閒置檢查會叫重連", calls == [1], calls)
+
 asyncio.run(main())
 print(f"{sum(res)}/{len(res)} 通過", flush=True)
 sys.exit(0 if all(res) else 1)

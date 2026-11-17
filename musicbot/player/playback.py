@@ -33,6 +33,8 @@ class PlaybackMixin:
         if st.lock.locked():
             return
         async with st.lock:
+            if guild.voice_client is not None and not guild.voice_client.is_connected():
+                await self.repair_voice(guild)                       # 語音卡在沒連上的狀態：先修好再播 / voice is stuck not connected: fix it before playing
             while True:
                 vc = guild.voice_client
                 if vc is None or vc.is_playing() or vc.is_paused() or not st.queue:

@@ -64,6 +64,7 @@ class GuildState:
     pending_seek: float | None = None   # 使用者拖曳進度條後要跳到的秒數 / seconds to jump to after the user dragged the progress bar
     seek_paused: bool = False           # 跳轉前是否處於暫停（跳完要維持暫停）/ whether it was paused before seeking (stay paused afterwards)
     empty_since: float = 0.0            # 頻道內只剩機器人的起始時間（monotonic）/ since when only bots remain in the channel (monotonic clock)
+    stale_since: float = 0.0            # 語音物件在但沒連上的起始時間 / since when the voice object has been there but not connected
     idle_since: float = 0.0             # 沒有在播也沒有待播的起始時間 / since when nothing is playing or queued
     reserved_channel: int | None = None  # 已被預約要去的語音頻道（避免兩個人同時加歌時搶到同一個分身）/ the voice channel this clone is reserved for (stops two people grabbing the same clone at once)
     reserved_until: float = 0.0

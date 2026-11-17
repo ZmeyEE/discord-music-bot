@@ -101,6 +101,7 @@ IDLE_LEAVE_SECONDS = 300    # ENV # 沒有在播也沒有待播 / nothing playin
 RECOVER_WINDOW = 900.0
 RECOVER_SECONDS = 600.0   # 回頻道最多試多久（頻道沒人就等人回來）/ how long to keep trying to rejoin (waits for people if the channel is empty)
 IDLE_CHECK_SECONDS = 20          # 多久檢查一次閒置 / how often the idle check runs
+VOICE_STALE_SECONDS = 25         # 語音連線斷了（物件還在但連不上）超過幾秒就強制重連 / how long a dropped voice link (object still there but not connected) may last before it is force-reconnected
 RESERVE_SECONDS = 60.0           # 選到分身後預約幾秒，解析網址期間不會被別人搶走 / how long a picked clone stays reserved while the URL resolves
 VOICE_CHECK_DELAYS = (4, 16)     # 開始播放後第幾秒檢查語音連線／加密狀態（寫進記錄）/ seconds after playback starts when the voice link and encryption are checked (logged)
 

@@ -46,6 +46,32 @@ class VoiceMixin:
         st.joined_at = time.monotonic()
         return vc
 
+    async def repair_voice(self, guild: discord.Guild) -> bool:
+        """語音物件還在、但其實沒連上（網路瞬斷後 discord.py 重連失敗會卡在這個狀態，之後每首都"Not connected to voice"）：
+        強制斷開，再回到上次的頻道。回傳是否已經連上
+
+        The voice object is there but not connected (after a network blip discord.py's reconnect can give up and stay like this, so every song then fails
+        with "Not connected to voice"): disconnect it for good, then rejoin the last channel. Returns whether we are connected now.
+        """
+        vc = guild.voice_client
+        if vc is None:
+            return False
+        if vc.is_connected():
+            return True
+        st = self.state(guild.id)
+        log.warning("[%s] 語音連線斷了而且沒有自己恢復（%s），強制重連", self.label, guild.name)
+        try:
+            await vc.disconnect(force=True)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("強制斷開失敗：%s", exc)
+        try:
+            vc = await asyncio.wait_for(self.ensure_voice(guild), 25)
+        except Exception as exc:  # noqa: BLE001 - 連不上：下一輪（20 秒後）再試 / cannot connect: the next round (20 s later) tries again
+            log.warning("[%s] 重連語音失敗：%s", self.label, exc)
+            return False
+        st.stale_since = 0.0
+        return bool(vc and vc.is_connected())
+
     async def _say(self, st: GuildState, text: str, problem: bool = False) -> None:
         """在記錄的文字頻道發訊息；失敗就算了，problem=True 表示在回報問題（要不要發由 params.CHANNEL_NOTICES 決定）
 
@@ -114,8 +140,14 @@ class VoiceMixin:
         for guild in list(self.guilds):
             vc, st = guild.voice_client, self.state(guild.id)
             if not vc:
-                st.empty_since = st.idle_since = 0.0
+                st.empty_since = st.idle_since = st.stale_since = 0.0
                 continue
+            if not vc.is_connected():                   # 卡在"物件在但沒連上"：等 VOICE_STALE_SECONDS 還沒自己恢復就強制重連 / stuck "object there, not connected": force a reconnect after VOICE_STALE_SECONDS
+                st.stale_since = st.stale_since or now
+                if now - st.stale_since >= params.VOICE_STALE_SECONDS and await self.repair_voice(guild) and st.queue:
+                    await self.ensure_playing(guild)
+                continue
+            st.stale_since = 0.0
             humans = [m for m in vc.channel.members if not m.bot]
             st.empty_since = (st.empty_since or now) if not humans else 0.0
             busy = vc.is_playing() or vc.is_paused() or st.busy

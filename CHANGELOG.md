@@ -3,6 +3,11 @@
 格式參考 [Keep a Changelog](https://keepachangelog.com/)，版本號遵循 [SemVer](https://semver.org/lang/zh-TW/)
 Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [SemVer](https://semver.org/)
 
+## [Unreleased]
+
+### 修正 / Fixes
+- 網路瞬斷後語音連線卡在"物件在但沒連上"，之後每首歌都 `Not connected to voice`：現在按播放會先強制重連，閒置檢查在斷線超過 25 秒（`VOICE_STALE_SECONDS`）還沒恢復時也會自動重連並接著播 / after a network blip the voice link could stay "there but not connected" so every song failed with `Not connected to voice`; playing now force-reconnects first, and the idle check reconnects automatically (and resumes) when it has not recovered after 25 s (`VOICE_STALE_SECONDS`).
+
 ## [2.1.0] - 2026-11-17
 
 ### 新增 / Added
