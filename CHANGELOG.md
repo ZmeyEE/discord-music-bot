@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow 
 
 ### 修正 / Fixes
 - 網路瞬斷後語音連線卡在"物件在但沒連上"，之後每首歌都 `Not connected to voice`：現在按播放會先強制重連，閒置檢查在斷線超過 25 秒（`VOICE_STALE_SECONDS`）還沒恢復時也會自動重連並接著播 / after a network blip the voice link could stay "there but not connected" so every song failed with `Not connected to voice`; playing now force-reconnects first, and the idle check reconnects automatically (and resumes) when it has not recovered after 25 s (`VOICE_STALE_SECONDS`).
+- 修正上一項造成的退不出去：自動離開頻道時（`stop` 會觸發一次 `ensure_playing`），強制重連反而把機器人拉回空頻道、卡在連線中，之後閒置檢查又略過它，永遠不退出。現在沒有待播、或頻道裡沒有真人時不會重連，卡住的連線直接離開 / fixed the previous item backfiring: on an auto-leave (`stop` triggers one `ensure_playing`) the forced reconnect pulled the bot back into the empty channel, stuck connecting, and the idle check skipped it so it never left. Now nothing is reconnected when the queue is empty or no human is in the channel; a stuck link just leaves.
+- 播放偵測：有卡頓事件時每 30 秒寫一行記錄（次數、ffmpeg 讀不到資料的次數、CPU、處理延遲、Discord 語音延遲）/ playback monitor: a log line every 30 s while stutter events occur (count, ffmpeg starving, CPU, processing lag, Discord voice latency).
 
 ## [2.1.0] - 2026-11-17
 

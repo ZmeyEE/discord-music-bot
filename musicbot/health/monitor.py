@@ -31,6 +31,7 @@ class HealthMonitor:
         self.ledger = Ledger()
         self._last_removal = -1e9
         self._seen: dict[StreamProbe, tuple[int, int]] = {}
+        self._acc: dict[str, float] = {}      # 30 秒內累計的卡頓事件，給記錄用 / stutter events accumulated over 30 s, for the log
         self._active: dict[object, tuple[float, float]] = {}      # key -> (開始占用, 最後一次看到在播) / key -> (occupied since, last seen playing)
         self._lags: deque[tuple[float, float]] = deque(maxlen=int(params.RECENT / params.CHECK_INTERVAL) + 2)
         self._cpus: deque[float] = deque(maxlen=int(params.RECENT / params.CHECK_INTERVAL) + 2)
@@ -71,6 +72,24 @@ class HealthMonitor:
             reasons.append(f"連到 Discord 的網路延遲偏高（約 {lat * 1000:.0f} 毫秒）")
         return reasons or ["送出音訊封包的時間不穩（可能是上傳網路不穩，或電腦同時在忙別的事）"]
 
+    def _note(self, now: float, late: int, starved: int, cpu: float | None, lag: float, samples: list[Sample]) -> None:
+        """把"有出現卡頓事件"的時段寫進記錄（每 30 秒最多一行），事後才查得到當時是 ffmpeg 沒資料、機器人被拖慢，還是電腦/網路的問題
+        Write stretches with stutter events to the log (at most one line per 30 s), so afterwards it is possible to tell ffmpeg starving, the bot being slowed, or the computer / network."""
+        a = self._acc
+        if not a:
+            a.update(t=now, late=0, starved=0, lag=0.0, cpu=0.0)
+        a["late"] += late
+        a["starved"] += starved
+        a["lag"] = max(a["lag"], lag)
+        a["cpu"] = max(a["cpu"], cpu or 0.0)
+        if now - a["t"] < 30:
+            return
+        if a["late"]:
+            lat = max((s.latency or 0.0 for s in samples), default=0.0)
+            log.info("播放偵測：過去 30 秒有 %d 次音訊間隔超過 60 毫秒（其中 %d 次是 ffmpeg 讀不到資料）；電腦 CPU 最高 %.0f%%；機器人處理最長延遲 %.0f 毫秒；Discord 語音延遲 %.0f 毫秒",
+                     a["late"], a["starved"], a["cpu"], a["lag"] * 1000, lat * 1000)
+        a.clear()
+
     def step(self, now: float, samples: list[Sample], cpu: float | None, lag: float) -> Removal | None:
         """處理一個 5 秒區間的資料；只有"全部條件成立"才回傳要停掉的串流
 
@@ -88,6 +107,7 @@ class HealthMonitor:
         self._lags.append((now, lag))
         if cpu is not None:
             self._cpus.append(cpu)
+        self._note(now, late, starved, cpu, lag, samples)
 
         # 哪些頻道"正在占用"、各自從什麼時候開始：歌曲切換（載入新歌的幾秒）不算離開，所以給一段寬限
         # Which channels are "occupied" and since when: a song change (a few seconds of loading) isn't a

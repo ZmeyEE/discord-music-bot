@@ -46,6 +46,25 @@ class VoiceMixin:
         st.joined_at = time.monotonic()
         return vc
 
+    @staticmethod
+    def _humans_in(vc) -> bool:
+        """這個語音連線的頻道裡有沒有真人 / Is there a human in this voice client's channel?"""
+        try:
+            return any(not m.bot for m in vc.channel.members)
+        except Exception:  # noqa: BLE001 - 連線狀態壞掉時讀不到成員：當作沒人 / a broken link may not list members: treat as nobody
+            return False
+
+    async def _drop_voice(self, guild: discord.Guild) -> None:
+        """不管連線狀態，確實離開語音頻道並清掉計時 / Leave voice for sure whatever the link state, and clear the timers."""
+        st = self.state(guild.id)
+        st.empty_since = st.idle_since = st.stale_since = 0.0
+        vc = guild.voice_client
+        if vc is not None:
+            try:
+                await vc.disconnect(force=True)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("離開語音頻道失敗：%s", exc)
+
     async def repair_voice(self, guild: discord.Guild) -> bool:
         """語音物件還在、但其實沒連上（網路瞬斷後 discord.py 重連失敗會卡在這個狀態，之後每首都"Not connected to voice"）：
         強制斷開，再回到上次的頻道。回傳是否已經連上
@@ -59,6 +78,10 @@ class VoiceMixin:
         if vc.is_connected():
             return True
         st = self.state(guild.id)
+        if not self._humans_in(vc):                 # 頻道裡沒有人：不用回去，直接離開（不然會回到空頻道、永遠不自動退出）/ nobody is in the channel: do not go back, just leave (else we would sit in an empty channel and never auto-leave)
+            log.info("[%s] 語音連線斷了，頻道裡也沒有人（%s），直接離開", self.label, guild.name)
+            await self._drop_voice(guild)
+            return False
         log.warning("[%s] 語音連線斷了而且沒有自己恢復（%s），強制重連", self.label, guild.name)
         try:
             await vc.disconnect(force=True)
@@ -144,8 +167,12 @@ class VoiceMixin:
                 continue
             if not vc.is_connected():                   # 卡在"物件在但沒連上"：等 VOICE_STALE_SECONDS 還沒自己恢復就強制重連 / stuck "object there, not connected": force a reconnect after VOICE_STALE_SECONDS
                 st.stale_since = st.stale_since or now
-                if now - st.stale_since >= params.VOICE_STALE_SECONDS and await self.repair_voice(guild) and st.queue:
-                    await self.ensure_playing(guild)
+                if now - st.stale_since >= params.VOICE_STALE_SECONDS:
+                    if not st.queue and not st.current:      # 沒有要播的：不用救，直接離開 / nothing to play: no need to save it, leave
+                        log.info("[%s] 語音連線斷了而且沒有待播（%s），直接離開", self.label, guild.name)
+                        await self._drop_voice(guild)
+                    elif await self.repair_voice(guild) and st.queue:
+                        await self.ensure_playing(guild)
                 continue
             st.stale_since = 0.0
             humans = [m for m in vc.channel.members if not m.bot]

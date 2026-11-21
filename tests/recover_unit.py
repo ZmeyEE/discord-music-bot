@@ -161,9 +161,34 @@ async def main():
         await w._idle_round()
     check("R13 剛斷線的第一輪先不動（給 discord.py 自己恢復的機會）", not calls and st.stale_since > 0)
     st.stale_since -= params.VOICE_STALE_SECONDS + 1
+    st.queue = deque([SimpleNamespace(id="x")])                 # 有歌要播才值得救 / only worth saving when there is something to play
     with mock.patch.object(PlayerBot, "guilds", new_callable=mock.PropertyMock, return_value=[g]):
         await w._idle_round()
-    check("R14 卡太久：閒置檢查會叫重連", calls == [1], calls)
+    check("R14 卡太久而且有待播：閒置檢查會叫重連", calls == [1], calls)
+
+    # 11) 沒人／沒歌時不能回到空頻道（否則永遠不會自動退出）/ with nobody or nothing to play we must not go back to an empty channel (or we would never auto-leave)
+    g = Guild(humans=0); w = make(g, drop_ago=999); st = w.state(1); st.last_voice_id = 7
+    w.repair_voice = PlayerBot.repair_voice.__get__(w); w._drop_voice = PlayerBot._drop_voice.__get__(w)
+    vc = StuckVC(channel=g.channel, guild=g); g.voice_client = vc
+    ok = await w.repair_voice(g)
+    check("R15 頻道沒有真人：不重連，直接離開", ok is False and getattr(vc, "gone", False) and not w._connected and g.voice_client is None, (ok, w._connected))
+    g = Guild(humans=2); w = make(g, drop_ago=999); st = w.state(1); st.last_voice_id = 7
+    w._drop_voice = PlayerBot._drop_voice.__get__(w)
+    vc = StuckVC(channel=g.channel, guild=g); g.voice_client = vc
+    calls = []
+    async def fake_repair2(g_): calls.append(1); return False
+    w.repair_voice = fake_repair2
+    st.stale_since = time.monotonic() - params.VOICE_STALE_SECONDS - 1
+    with mock.patch.object(PlayerBot, "guilds", new_callable=mock.PropertyMock, return_value=[g]):
+        await w._idle_round()
+    check("R16 卡住又沒有待播：直接離開，不叫重連", getattr(vc, "gone", False) and not calls and g.voice_client is None, calls)
+    g = Guild(humans=2); w = make(g, drop_ago=999); st = w.state(1); st.last_voice_id = 7
+    w.ensure_playing = PlayerBot.ensure_playing.__get__(w); calls = []
+    async def fake_repair3(g_): calls.append(1); return False
+    w.repair_voice = fake_repair3
+    g.voice_client = StuckVC(channel=g.channel, guild=g)
+    await w.ensure_playing(g)
+    check("R17 沒有待播時 ensure_playing 不會去修連線（離開頻道時會被呼叫一次）", not calls, calls)
 
 asyncio.run(main())
 print(f"{sum(res)}/{len(res)} 通過", flush=True)

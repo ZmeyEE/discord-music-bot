@@ -164,4 +164,18 @@ cs = H.CpuSampler(); first = cs.percent(); t_end = time.time() + 0.6
 while time.time() < t_end: pass
 second = cs.percent()
 check("C1 第一次取樣沒有基準（None），第二次回傳 0~100 的數字", first is None and second is not None and 0 <= second <= 100, (first, second))
+# ---- 卡頓事件寫進記錄 ----
+import logging
+class _Cap(logging.Handler):
+    def __init__(self): super().__init__(); self.lines = []
+    def emit(self, r): self.lines.append(r.getMessage())
+cap = _Cap(); logging.getLogger("musicbot").addHandler(cap); logging.getLogger("musicbot").setLevel(logging.INFO)
+hm = H.HealthMonitor(None)
+hm._note(0.0, 0, 0, 10.0, 0.0, []); hm._note(5.0, 0, 0, 10.0, 0.0, []); hm._note(30.0, 0, 0, 10.0, 0.0, [])
+check("N1 沒有卡頓事件就不寫記錄", not cap.lines, cap.lines)
+hm._note(35.0, 6, 4, 42.0, 0.2, []); hm._note(40.0, 1, 0, 30.0, 0.0, [])
+check("N2 有事件但還沒滿 30 秒：先不寫（每 30 秒最多一行）", not cap.lines, cap.lines)
+hm._note(66.0, 0, 0, 20.0, 0.0, [])
+check("N3 滿 30 秒寫一行，含次數、ffmpeg 讀不到資料的次數、最高 CPU、處理延遲", len(cap.lines) == 1 and "7 次" in cap.lines[0] and "4 次" in cap.lines[0] and "42%" in cap.lines[0] and "200 毫秒" in cap.lines[0], cap.lines)
+logging.getLogger("musicbot").removeHandler(cap)
 print(f"總結：{sum(res)}/{len(res)} 通過")
