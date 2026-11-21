@@ -6,8 +6,9 @@ version info. Bump it together with the musicbot version.
 
   paths.py    找專案資料夾、看板網址 / project folder, dashboard URL
   procs.py    程序控制：啟動／停止機器人（不碰畫面）/ process control: start and stop the bot (no UI)
+  schedule.py / schedule_ui.py  每日定時重啟：設定與時間計算／按鈕、對話框與計時 / daily restart: settings and time maths / pill, dialog and timer
   theme.py    配色與字體，同網頁看板 / colours and fonts, as the web dashboard
   widgets.py  畫面零件：漸層背景、卡片、膠囊按鈕、狀態燈 / UI parts: gradient, cards, pill buttons, status light
   window.py   視窗本體 / the window
 """
-__version__ = "2.1.0"
+__version__ = "2.2.0"

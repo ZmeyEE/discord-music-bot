@@ -316,6 +316,7 @@ SDR 是波形層級的指標；Opus 低位元率靠心理聲學取捨，人耳�
   `pip install pyinstaller` 後執行 `pyinstaller --onefile --windowed --name MusicBotLauncher launcher\launcher.py`
 - 找專案資料夾的順序：環境變數 `MUSICBOT_DIR` → `launcher.json`（放在 exe 旁，或 `%APPDATA%\MusicBotLauncher\`，內容 `{"project": "專案資料夾路徑"}`）→ 原始碼的上一層／exe 所在資料夾 → 都找不到就跳出視窗請你選，並記住，專案搬家時，刪掉或修改 `launcher.json` 即可
 - Order in which the project folder is found: `MUSICBOT_DIR` → `launcher.json` (next to the exe or in `%APPDATA%\MusicBotLauncher\`) → the parent of the script / the exe's folder → otherwise a folder picker asks and remembers.
+- 每日定時重啟：紀錄卡片右上角的「⏰ 每日重啟」按鈕可設定開關和時間，到時間機器人在執行中就自動重新啟動（已停止的不會被啟動，電腦睡著錯過就略過），控制面板要保持開著 / Daily restart: the "⏰" pill at the log card's top right sets a switch and a time; a running bot is restarted then (a stopped one is not started, a missed time while asleep is skipped), and the panel must stay open.
 - 同時只允許開一個控制面板；啟動時若發現已有同專案的機器人在跑，會先關掉它，避免同一組 token 重複登入
 
 ## 疑難排解

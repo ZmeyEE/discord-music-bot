@@ -20,6 +20,7 @@ from .actions import ActionsMixin
 from .logview import LogMixin
 from .paths import APP_TITLE, dashboard_url
 from .procs import BotRunner
+from .schedule_ui import ScheduleMixin
 from .widgets import Pill, PillHub, draw_background, draw_card, draw_logo, draw_status_dot
 
 MARGIN = 22
@@ -31,7 +32,7 @@ LOOKS = {
 }
 
 
-class App(ActionsMixin, LogMixin):
+class App(ActionsMixin, LogMixin, ScheduleMixin):
     """控制面板視窗 / The control-panel window."""
 
     def __init__(self, root: tk.Tk, project: Path) -> None:
@@ -107,6 +108,9 @@ class App(ActionsMixin, LogMixin):
         self.tools = (self.b_clear, self.b_folder, self.b_open)
         self.pills = PillHub(self.cv)          # 滑鼠事件由它用座標判斷，不綁在圖形上（見 widgets.PillHub）/ mouse events by hit-testing, not bound to items (see widgets.PillHub)
         self.pills.add(*self.controls, *self.tools)
+        self.init_schedule()                   # 每日重啟：小按鈕放在紀錄卡片右上角 / daily restart: a small pill at the log card's top right
+        self.b_sched = Pill(self.cv, self.sched_label(), self.open_schedule, self.fonts.small, "ghost")
+        self.pills.add(self.b_sched)
 
     def _on_resize(self, _e=None) -> None:
         """視窗大小變了：稍等一下再重畫，拖曳時不要每格都畫 / Window resized: redraw after a short pause, not on every pixel of a drag."""
@@ -159,7 +163,9 @@ class App(ActionsMixin, LogMixin):
         self.cv.itemconfigure(self._log_win, width=max(w - 2 * MARGIN - 52, 80), height=max(cy1 - cy0 - 56, 40))
         self.cv.coords(self._scroll_win, w - MARGIN - 12, cy0 + 38)
         self.cv.itemconfigure(self._scroll_win, height=max(cy1 - cy0 - 56, 40))
+        sw = self.b_sched.width(14)
+        self.b_sched.place(w - MARGIN - 18 - sw, cy0 + 7, sw, 26, theme.CARD)
         cv.tag_raise(self._log_win)
         cv.tag_raise(self._scroll_win)
-        for b in (*self.controls, *self.tools):
+        for b in (*self.controls, *self.tools, self.b_sched):
             cv.tag_raise(b.tag)

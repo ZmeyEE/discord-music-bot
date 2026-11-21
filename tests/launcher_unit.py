@@ -135,6 +135,33 @@ check("T1 lerp 兩端", theme.lerp("#000000", "#ffffff", 0) == "#000000" and the
 check("T2 背景漸層頭尾同看板", theme.bg_at(0) == "#AFA3CB".lower() and theme.bg_at(1) == "#F7E0D3".lower(), (theme.bg_at(0), theme.bg_at(1)))
 check("T3 glass 疊白色，alpha 越大越白", theme.glass("#000000", 0.5) == "#808080" and theme.glass("#336699", 0.9) > theme.glass("#336699", 0.2))
 
+# ============ 每日定時重啟：設定與時間計算 / daily restart: settings and time maths ============
+from datetime import datetime, timedelta
+from botpanel import schedule
+check("S1 時間字串整理成 HH:MM，不合法回傳 None", schedule.parse_time("4:5") == "04:05" and schedule.parse_time(" 23:59 ") == "23:59" and schedule.parse_time("0:00") == "00:00"
+      and all(schedule.parse_time(x) is None for x in ("24:00", "12:60", "ab", "", "12", "-1:30", "1:2:3")))
+d0 = datetime(2026, 11, 22, 3, 0, 0)
+check("S2 下一次：還沒到是今天，剛好或已過是明天", schedule.next_run(d0, "04:00") == datetime(2026, 11, 22, 4, 0)
+      and schedule.next_run(datetime(2026, 11, 22, 4, 0, 0), "04:00") == datetime(2026, 11, 23, 4, 0)
+      and schedule.next_run(datetime(2026, 11, 22, 5, 0, 0), "04:00") == datetime(2026, 11, 23, 4, 0)
+      and schedule.next_run(datetime(2026, 11, 22, 23, 59, 30), "00:00") == datetime(2026, 11, 23, 0, 0))
+due = datetime(2026, 11, 22, 4, 0)
+check("S3 判斷：沒到等待、到了重啟、寬限內仍重啟、錯過太久略過",
+      schedule.verdict(due - timedelta(seconds=1), due) == "wait" and schedule.verdict(due, due) == "fire"
+      and schedule.verdict(due + timedelta(seconds=schedule.GRACE_SECONDS), due) == "fire"
+      and schedule.verdict(due + timedelta(seconds=schedule.GRACE_SECONDS + 1), due) == "skip")
+sp = tmp / "sched" / "schedule.json"
+check("S4 沒有設定檔：關閉、預設時間", schedule.load(sp) == (False, schedule.DEFAULT_TIME))
+schedule.save(True, "05:30", sp)
+check("S5 存了再讀回來", schedule.load(sp) == (True, "05:30"))
+sp.write_text("{壞掉", encoding="utf-8")
+check("S6 設定檔壞掉：當作關閉、不丟錯", schedule.load(sp) == (False, schedule.DEFAULT_TIME))
+sp.write_text(json.dumps({"enabled": True, "time": "99:99"}), encoding="utf-8")
+check("S7 時間不合法：開關保留、時間退回預設", schedule.load(sp) == (True, schedule.DEFAULT_TIME))
+check("S8 設定檔和記住專案位置的 launcher.json 分開，不會互相覆蓋", schedule.settings_path().name == "schedule.json" and schedule.settings_path().parent == paths.user_config_path().parent
+      and schedule.settings_path() != paths.user_config_path())
+schedule.settings_path = lambda: tmp / "sched_app" / "schedule.json"   # 視窗測試別碰到使用者真正的設定 / window tests must not touch the user's real settings
+
 # ============ 視窗 ============
 try:
     import tkinter as tk
@@ -176,6 +203,63 @@ app.clear_log()
 check("W9 清除紀錄", app.log.get("1.0", "end").strip() == "")
 root.geometry("740x440+60+60"); drain(app, 400)
 check("W10 縮到最小也畫得出來（不出錯）", app.cv.winfo_width() >= 700)
+
+# 每日重啟 / daily restart
+from tkinter import messagebox as mb
+sb = app.b_sched
+check("W15 「每日重啟」小按鈕畫在紀錄卡片右上角，預設是關", app.cv.find_withtag(sb.tag) and sb.text == "⏰ 每日重啟：關" and sb.box[2] <= app.cv.winfo_width() - 22 and sb.box[0] > 200 and not app.sched_on, (sb.box, sb.text))
+restarts = []
+app.restart = lambda: restarts.append(1)
+app.apply_schedule(True, "04:30")
+check("W16 設定開啟：小按鈕顯示時間、存了檔、算出下一次", sb.text == "⏰ 每日重啟 04:30" and schedule.load() == (True, "04:30") and app.sched_due is not None and app.sched_due.strftime("%H:%M") == "04:30" and app.sched_due > datetime.now())
+app.busy, app.kind = False, "running"
+due = app.sched_due
+app.check_schedule(due - timedelta(seconds=30))
+check("W17 還沒到時間：什麼都不做", restarts == [] and app.sched_due == due)
+app.check_schedule(due + timedelta(seconds=2))
+check("W18 到時間且機器人在跑：重啟一次，下一次排到明天", restarts == [1] and app.sched_due == due + timedelta(days=1) and "每日重啟：到了 04:30" in app.log.get("1.0", "end"), (restarts, app.sched_due))
+app.check_schedule(due + timedelta(seconds=5))
+check("W19 同一個時間點不會重複重啟", restarts == [1])
+due = app.sched_due
+app.busy = True
+app.check_schedule(due + timedelta(seconds=2))
+check("W20 正在啟動／停止中：先不動、時間點保留", restarts == [1] and app.sched_due == due)
+app.busy = False
+app.check_schedule(due + timedelta(seconds=17))
+check("W21 忙完後（還在寬限內）補上重啟", restarts == [1, 1] and app.sched_due == due + timedelta(days=1), restarts)
+due = app.sched_due
+app.kind = "stopped"
+app.check_schedule(due + timedelta(seconds=2))
+check("W22 機器人已停止：不會被叫起來，只排到明天", restarts == [1, 1] and app.sched_due == due + timedelta(days=1) and "沒有在執行" in app.log.get("1.0", "end"))
+due = app.sched_due
+app.kind = "running"
+app.check_schedule(due + timedelta(hours=3))
+check("W23 錯過太久（電腦睡著）：略過、不重啟", restarts == [1, 1] and app.sched_due > due + timedelta(hours=3) and "錯過了" in app.log.get("1.0", "end"))
+
+app.open_schedule(); d1 = app.dialog; app.open_schedule()
+check("W24 設定對話框只會開一個", d1 is app.dialog and d1.winfo_exists())
+def kids_of(w): return [w] + [x for c in w.winfo_children() for x in kids_of(c)]
+kids = kids_of(d1)
+cb = next(k for k in kids if k.winfo_class() == "Checkbutton")
+spins = [k for k in kids if k.winfo_class() == "Spinbox"]
+check("W25 對話框顯示目前的設定（開、04:30）", len(spins) == 2 and spins[0].get() == "04" and spins[1].get() == "30" and cb.winfo_class() == "Checkbutton")
+spins[0].delete(0, "end"); spins[0].insert(0, "7"); spins[1].delete(0, "end"); spins[1].insert(0, "99")
+shown = []
+mb.showerror = lambda *a, **k: shown.append(a)
+app.dialog_ok.invoke(); drain(app, 100)
+check("W26 時間不合法：跳錯誤、不存、對話框留著", len(shown) == 1 and schedule.load() == (True, "04:30") and d1.winfo_exists())
+spins[1].delete(0, "end"); spins[1].insert(0, "5")
+cb.invoke(); cb.invoke()   # 開 -> 關 -> 開，確認勾選框可以點 / toggle off then on again
+app.dialog_ok.invoke(); drain(app, 100)
+check("W27 輸入 7:5 按確定：存成 07:05、對話框關閉、小按鈕更新", schedule.load() == (True, "07:05") and not d1.winfo_exists() and sb.text == "⏰ 每日重啟 07:05", (schedule.load(), sb.text))
+app.open_schedule(); d2 = app.dialog
+next(k for k in kids_of(d2) if k.winfo_class() == "Checkbutton").invoke()
+app.dialog_ok.invoke(); drain(app, 100)
+check("W28 取消勾選再確定：關閉，不再排下一次", schedule.load()[0] is False and app.sched_due is None and sb.text == "⏰ 每日重啟：關")
+app.check_schedule(datetime.now() + timedelta(days=2))
+check("W29 關閉後再久都不會重啟", restarts == [1, 1])
+del app.restart   # 還原成真的重新啟動 / back to the real restart
+app.kind = "crashed"   # 後面的檢查原本就是從異常結束的狀態接著做 / the checks below continue from the crashed state, as before
 
 # 滑鼠：按鈕用座標判斷，不綁在圖形上（舊版游標停在按鈕上會無限重畫、視窗變"沒有回應"）
 # Mouse: buttons are hit-tested by coordinates, not bound to items (the old version redrew endlessly under a resting pointer and the window froze)

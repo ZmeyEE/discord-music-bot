@@ -4,4 +4,4 @@ A free, high-quality Discord music bot that runs locally (Bilibili first), with 
 Package layout is described in README.md ("專案結構 / Project layout").
 """
 # 版本號 / Version string (single place to bump for a release)
-__version__ = "2.1.0"
+__version__ = "2.2.0"

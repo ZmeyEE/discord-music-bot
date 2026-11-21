@@ -3,7 +3,10 @@
 格式參考 [Keep a Changelog](https://keepachangelog.com/)，版本號遵循 [SemVer](https://semver.org/lang/zh-TW/)
 Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow [SemVer](https://semver.org/)
 
-## [Unreleased]
+## [2.2.0] - 2026-11-22
+
+### 新增 / Added
+- **控制面板：每日定時重啟**：紀錄卡片右上角多了「⏰ 每日重啟」按鈕，點開可設定開關和時間（24 小時制），每天到那個時間，機器人在執行中就自動停止再啟動，用來減少長時間運作後的卡頓。已停止或異常結束的不會被叫起來；電腦睡著錯過超過 10 分鐘就略過那一天；設定存在 `%APPDATA%\MusicBotLauncher\schedule.json`，控制面板要保持開著才會生效 / control panel: a "⏰ daily restart" pill at the log card's top right opens a switch plus a time of day (24 h); at that time a running bot is stopped and started again, to cut the stutter that builds up over long uptimes. A stopped or crashed bot is never started, a time missed by more than 10 minutes (PC asleep) is skipped for that day, the setting lives in `%APPDATA%\MusicBotLauncher\schedule.json`, and the panel has to stay open for it to work.
 
 ### 修正 / Fixes
 - 網路瞬斷後語音連線卡在"物件在但沒連上"，之後每首歌都 `Not connected to voice`：現在按播放會先強制重連，閒置檢查在斷線超過 25 秒（`VOICE_STALE_SECONDS`）還沒恢復時也會自動重連並接著播 / after a network blip the voice link could stay "there but not connected" so every song failed with `Not connected to voice`; playing now force-reconnects first, and the idle check reconnects automatically (and resumes) when it has not recovered after 25 s (`VOICE_STALE_SECONDS`).

@@ -4,7 +4,7 @@
 這份給想改它的人：新增語言、改配色、優化音源到 Discord 的路徑、把看板 UI 用在別的地方
 (English version: [DEVELOPING.en.md](DEVELOPING.en.md))
 
-版本：**2.1.0** · 授權：[Unlicense](../LICENSE)（公有領域，想怎麼改都可以）· 第三方清單：[THIRD_PARTY.md](../THIRD_PARTY.md)
+版本：**2.2.0** · 授權：[Unlicense](../LICENSE)（公有領域，想怎麼改都可以）· 第三方清單：[THIRD_PARTY.md](../THIRD_PARTY.md)
 
 ## 1. 專案地圖
 
